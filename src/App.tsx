@@ -1,13 +1,12 @@
-import { Outlet, ScrollRestoration } from "react-router";
-import { useRevealFallback } from "./lib/reveal";
+import { ScrollRestoration } from "react-router";
+import { HomeProvider } from "./home/HomeProvider";
+import Shell from "./home/Shell";
 
 export default function App() {
-  // IntersectionObserver fallback for .reveal when the browser has no scroll-driven animations.
-  useRevealFallback();
   return (
-    <>
-      <Outlet />
+    <HomeProvider>
+      <Shell />
       <ScrollRestoration />
-    </>
+    </HomeProvider>
   );
 }

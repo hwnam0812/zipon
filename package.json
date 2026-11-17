@@ -6,6 +6,13 @@
     "dev": "node scripts/dev.mjs",
     "build": "tsc -b && vite build",
     "db:init": "node scripts/db-init.mjs",
+    "test": "node --experimental-strip-types --test test/home-model.test.ts test/home-worker.test.mjs test/home-automation.test.mjs",
+    "test:usb": "python3 -B -m unittest discover -s test -p 'test_usb_*.py'",
+    "test:firmware": "node scripts/test-firmware.mjs",
+    "test:firmware:v4": "node scripts/test-firmware-v4.mjs",
+    "test:streamlit": "node --test test/streamlit-model.test.mjs",
+    "test:streamlit:browser": "node test/streamlit-browser.mjs",
+    "package:streamlit": "node scripts/package-streamlit.mjs",
     "check": "node ../_tools/check.mjs ."
   },
   "dependencies": {

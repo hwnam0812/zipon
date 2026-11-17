@@ -2,6 +2,11 @@ import type { RouteObject } from "react-router";
 import App from "./App";
 import Admin from "./pages/Admin";
 import Home from "./pages/Home";
+import History from "./pages/History";
+import Settings from "./pages/Settings";
+import Devices from "./pages/Devices";
+import Monitor from "./pages/Monitor";
+import { Navigate } from "react-router";
 
 // Every page of the app is listed here, and only here. main.tsx builds the router from this
 // array and exposes it as window.__baze.routes so the BAZE preview can list the pages.
@@ -13,7 +18,12 @@ export const routes: RouteObject[] = [
     element: <App />,
     children: [
       { path: "/admin", element: <Admin />, handle: { owner: true } },
-      { path: "*", element: <Home /> },
+      { index: true, element: <Home /> },
+      { path: "/history", element: <History /> },
+      { path: "/settings", element: <Settings /> },
+      { path: "/devices", element: <Devices /> },
+      { path: "/monitor", element: <Monitor /> },
+      { path: "*", element: <Navigate to="/" replace /> },
     ],
   },
 ];

@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1280" viewBox="0 0 1000 1280" role="img" aria-labelledby="title desc">
+  <title id="title">집온 USB V4 UNO R3·MQ-135·HC-SR04·LED·수동 피에조 연결</title>
+  <desc id="desc">MQ-135 VCC는 별도 안정화 5V, GND는 전원 음극과 UNO GND 공통, AO는 A5, DO는 미연결이에요. UNO는 노트북 USB 전원이며 두 전원의 양극은 합치지 않아요. HC-SR04는 UNO 5V, Trig D9, Echo D11, GND 공통이에요. D8은 330옴 직렬 저항을 거쳐 LED 양극, D6은 작은 수동 피에조 양극이에요. 모든 음극은 GND예요. 실제 핀 글씨와 구동 조건을 확인해야 해요.</desc>
+  <style>text{font-family:Pretendard,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;fill:#203e34;font-size:18px}.small{font-size:14px;fill:#4f625c}.pin{font-size:20px;font-weight:600}.wire{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.box{fill:#fff;stroke:#b8cec6;stroke-width:1.5}.ground{stroke:#42544c}.signal{stroke:#267b64}.power{stroke:#b7473c}</style>
+  <rect width="1000" height="1280" fill="#f3f7f7"/>
+  <text x="50" y="48" style="font-size:27px;font-weight:700">집온 USB V4 · 자동 경보 우선 연결 회로</text>
+  <text class="small" x="50" y="77">UNO R3 · ZIPON_USB_V4 · 9600 baud · 실제 핀 글씨 확인 / 실물 검증 전</text>
+  <rect class="box" x="50" y="110" width="280" height="105" rx="12"/>
+  <text x="70" y="142" font-weight="700">MQ-135용 별도 안정화 5V</text>
+  <text class="small" x="70" y="168">모듈 규격에 맞는 절연 저전압 전원</text>
+  <text x="140" y="202" style="fill:#b7473c">+</text><text x="278" y="202">−</text>
+  <rect class="box" x="650" y="110" width="300" height="105" rx="12"/>
+  <text x="674" y="145" font-weight="700">노트북 · USB 데이터 케이블</text>
+  <text class="small" x="674" y="176">앱 연결 유지·기록 전송은 인터넷 필요</text>
+  <path class="wire" stroke="#6b8790" d="M800 215V285"/>
+  <text class="small" x="814" y="256">USB 전원·통신</text>
+  <rect class="box" x="50" y="285" width="280" height="235" rx="13"/>
+  <text x="70" y="319" font-weight="700">MQ-135 4핀 모듈</text>
+  <text class="small" x="70" y="350">6핀 금속 캡 단품용 아님</text>
+  <text class="pin" x="264" y="376">VCC</text><text class="pin" x="264" y="416">GND</text>
+  <text class="pin" x="277" y="456">AO</text><text class="pin" x="277" y="496">DO</text>
+  <rect class="box" x="650" y="285" width="300" height="800" rx="15"/>
+  <text x="675" y="324" style="font-size:24px;font-weight:700">Arduino UNO R3</text>
+  <text class="small" x="675" y="350">5V · ATmega328P</text>
+  <text class="pin" x="665" y="416">GND</text><text class="pin" x="665" y="456">A5</text>
+  <text class="pin" x="665" y="626">5V</text><text class="pin" x="665" y="676">D9 · Trig</text>
+  <text class="pin" x="665" y="726">D11 · Echo</text><text class="pin" x="665" y="866">D8 · LED</text>
+  <text class="pin" x="665" y="1016">D6 · 수동 피에조</text>
+  <text class="small" x="675" y="532">외부 전원의 +를</text><text class="small" x="675" y="554">UNO 5V / VIN에 연결하지 않음</text>
+  <text class="small" x="675" y="954">D10 · MQ-135 DO 미사용</text>
+  <path class="wire power" d="M147 215V246H405V370H330"/>
+  <path class="wire ground" d="M285 215V230H550V1100M330 410H650"/>
+  <circle cx="550" cy="410" r="5" fill="#42544c"/>
+  <text class="small" x="445" y="396">공통 GND</text>
+  <path class="wire signal" d="M330 450H540Q550 439 560 450H650"/>
+  <path class="wire" stroke="#97aaa1" d="M330 490H390"/><text class="small" x="400" y="496">미연결</text>
+  <rect class="box" x="50" y="575" width="280" height="215" rx="13"/>
+  <text x="70" y="608" font-weight="700">HC-SR04 · 5V형 확인</text>
+  <text class="pin" x="265" y="626">VCC</text><text class="pin" x="266" y="676">Trig</text>
+  <text class="pin" x="257" y="726">Echo</text><text class="pin" x="265" y="776">GND</text>
+  <path class="wire power" d="M330 620H540Q550 609 560 620H650"/>
+  <path class="wire" stroke="#7388a8" d="M330 670H540Q550 659 560 670H650"/>
+  <path class="wire" stroke="#906b9c" d="M330 720H540Q550 709 560 720H650"/>
+  <path class="wire ground" d="M330 770H550"/><circle cx="550" cy="770" r="5" fill="#42544c"/>
+  <rect class="box" x="50" y="830" width="280" height="105" rx="12"/>
+  <text x="70" y="863" font-weight="700">표시 LED</text><text class="pin" x="277" y="866">+</text><text class="pin" x="277" y="916">−</text>
+  <path class="wire signal" d="M330 860H405M490 860H540Q550 849 560 860H650"/>
+  <rect x="405" y="851" width="85" height="18" rx="2" fill="#e6dac5" stroke="#715f41" stroke-width="2"/>
+  <text class="small" x="407" y="891">직렬 330Ω</text>
+  <path class="wire ground" d="M330 910H550"/><circle cx="550" cy="910" r="5" fill="#42544c"/>
+  <rect class="box" x="50" y="980" width="280" height="105" rx="12"/>
+  <text x="70" y="1013" font-weight="700">작은 수동 피에조</text><text class="pin" x="277" y="1016">+</text><text class="pin" x="277" y="1066">−</text>
+  <text class="small" x="70" y="1043">모델·구동 전류 확인 필수</text>
+  <path class="wire signal" d="M330 1010H540Q550 999 560 1010H650"/>
+  <path class="wire ground" d="M330 1060H550"/><circle cx="550" cy="1060" r="5" fill="#42544c"/>
+  <text class="small" x="570" y="1110">●는 접속점 / 둥근 교차선은 미연결</text>
+  <rect x="50" y="1140" width="900" height="112" rx="11" fill="#fff0e3"/>
+  <text x="70" y="1170" font-size="17">두 전원은 GND만 공통. 켜기: UNO USB → 센서 / 끄기: 센서 → UNO USB</text>
+  <text class="small" x="70" y="1198">가스 경보: LED·부저 / 출입 의심: 부저만 / 수동 끄기로 자동 경보를 막지 않아요.</text>
+  <text class="small" x="70" y="1226">농도·안전·화재·사람의 출입을 판정하지 않아요. 가스·불꽃·연기로 시험하지 마세요.</text>
+</svg>

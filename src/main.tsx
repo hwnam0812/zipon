@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router";
 import { routes } from "./routes";
 import "./styles.css";
+import "./home/home.css";
 
 const router = createBrowserRouter(routes);
 // The BAZE preview reads the app's pages from here. Keep this line; add pages in routes.tsx.

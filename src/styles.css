@@ -63,14 +63,14 @@
 
   /* --- ground colors: bg-ground, bg-ground-2, bg-surface, text-ink, text-ink-2, text-ink-3,
          border-line, bg-accent, text-on-accent ----------------------------------------- */
-  --color-ground: #ffffff;
+  --color-ground: #f5f7f8;
   --color-ground-2: #f4f5f7;
   --color-surface: #ffffff;
-  --color-ink: #15181d;
-  --color-ink-2: #4a5160;
-  --color-ink-3: #7c8595;
-  --color-line: #e4e7ec;
-  --color-accent: #15181d;
+  --color-ink: #263e35;
+  --color-ink-2: #65766c;
+  --color-ink-3: #708077;
+  --color-line: #e4eae5;
+  --color-accent: #28785c;
   --color-on-accent: #ffffff;
   --color-field: #ffffff;        /* input background */
   --color-line-strong: #b9c0cb;  /* border on hover / focused field */
@@ -148,7 +148,7 @@
   --color-on-accent: #ffffff;
   --color-field: #ffffff;
   --color-line-strong: #b9c0cb;
-  --color-ring: #15181d;
+  --color-ring: #28785c;
   --color-ok: #1f7a4d;
   --color-warn: #a86b12;
   --color-danger: #b42318;

@@ -1,7 +1,7 @@
 // 템플릿 공통 Worker 도구. 템플릿마다 그대로 복사해 쓴다(템플릿은 서로 import 하지 않는다).
 import type { Context, MiddlewareHandler } from "hono";
 
-export type Bindings = { DB: D1Database; ASSETS: Fetcher; ADMIN_TOKEN?: string };
+export type Bindings = Env & { ADMIN_TOKEN?: string };
 
 /** 문자열만 받고, 앞뒤 공백을 자르고, 길이를 제한한다. 문자열이 아니면 "". */
 export const clean = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
@@ -105,7 +105,12 @@ export async function purgeAfter(db: D1Database, anchorIso: string | undefined, 
 }
 
 /** 같은 IP 가 window 초 안에 limit 번 넘게 쓰면 막는다. 테이블 rate_limit 이 schema.sql 에 있어야 한다. */
-export async function rateLimited(c: Context<{ Bindings: Bindings }>, bucket: string, limit: number, windowSec: number) {
+export async function rateLimitReached<E extends { Bindings: Bindings }>(c: Context<E>, bucket: string, limit: number, windowSec: number) {
+  const key = `${bucket}:${await sha256(c.req.header("cf-connecting-ip") ?? "local")}`;
+  const row = await c.env.DB.prepare("SELECT count, window_start FROM rate_limit WHERE key = ?").bind(key).first<{ count: number; window_start: number }>();
+  return Boolean(row && Math.floor(Date.now() / 1000) - row.window_start < windowSec && row.count >= limit);
+}
+export async function rateLimited<E extends { Bindings: Bindings }>(c: Context<E>, bucket: string, limit: number, windowSec: number) {
   const ip = c.req.header("cf-connecting-ip") ?? "local";
   const key = `${bucket}:${await sha256(ip)}`;
   const now = Math.floor(Date.now() / 1000);

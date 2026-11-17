@@ -1,1 +1,1 @@
-{ "data": { "tables": [] }, "secrets": ["ADMIN_TOKEN"] }
+{ "data": { "tables": ["home_events", "home_alerts", "home_output_commands", "home_commands", "home_settings", "home_devices"] }, "secrets": ["ADMIN_TOKEN"] }

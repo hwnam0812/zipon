@@ -6,3 +6,15 @@ dist
 .env
 .env.*
 !.env.example
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.streamlit/secrets.toml
+*.db
+*.db-shm
+*.db-wal
+*.sqlite*
+.uv-cache/
+.baze-files/uploads/
+.baze-files/outputs/
