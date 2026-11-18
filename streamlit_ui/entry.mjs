@@ -8,5 +8,6 @@ export default function renderZipon(component) {
   const emit = request => setTriggerValue("request", request);
   if (!root.ziponApp) root.ziponApp = new ZiponApp(root, { Chart: globalThis.Chart, data, emit });
   else root.ziponApp.update(data, emit);
+  parentElement.querySelector("[data-zipon-bootstrap]")?.remove();
   return () => { const app = root.ziponApp; delete root.ziponApp; void app?.destroy(); };
 }

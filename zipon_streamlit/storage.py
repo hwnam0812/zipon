@@ -83,6 +83,12 @@ class SessionStore:
     def read_state(self):
         with self.lock: return deepcopy(self.last_state)
 
+    def snapshot(self):
+        with self.lock:
+            settings, revision = self.read_settings()
+            rows, total = self.list_events()
+            return settings, revision, rows, total, self.read_state()
+
 
 SCHEMA = [
     "CREATE TABLE IF NOT EXISTS zipon_settings (scope TEXT PRIMARY KEY, value TEXT NOT NULL, revision INTEGER NOT NULL, updated_at TEXT NOT NULL)",
@@ -99,9 +105,11 @@ class SqlStore:
         self.durable = self.postgres
         self.mode = "postgres" if self.postgres else "development"
         self.lock = RLock()
+        self._connection = None
         self.url = None
         if url:
-            p = urlsplit(url)
+            try: p = urlsplit(url)
+            except ValueError: raise ValidationError("영구 저장소 연결 주소의 형식을 확인해 주세요.") from None
             if p.scheme not in ("postgres", "postgresql") or not p.hostname: raise ValidationError("영구 저장소 연결 주소의 형식을 확인해 주세요.")
             q = parse_qs(p.query, keep_blank_values=True)
             # Hosted connections must use TLS; no insecure silent downgrade.
@@ -115,6 +123,11 @@ class SqlStore:
             self.sqlite_path = str(sqlite_path)
         with self.transaction() as db:
             for statement in SCHEMA: self.execute(db, statement)
+            if self.postgres:
+                # No public Data API access. The table owner used by Streamlit
+                # can still read/write; anonymous and ordinary API roles cannot.
+                for name in ("zipon_settings", "zipon_events", "zipon_state", "zipon_leases"):
+                    self.execute(db, f"ALTER TABLE {name} ENABLE ROW LEVEL SECURITY")
             self.execute(db, "INSERT INTO zipon_settings(scope, value, revision, updated_at) VALUES (?, ?, 0, ?) ON CONFLICT(scope) DO NOTHING", ("family", json.dumps(DEFAULT_SETTINGS, ensure_ascii=False), utc_now()))
 
     @contextmanager
@@ -122,16 +135,42 @@ class SqlStore:
         with self.lock:
             if self.postgres:
                 import psycopg
-                db = psycopg.connect(self.url, connect_timeout=5)
+                if self._connection is None or self._connection.closed or self._connection.broken:
+                    self._connection = psycopg.connect(self.url, connect_timeout=4,
+                        prepare_threshold=None,
+                        options="-c statement_timeout=3000 -c lock_timeout=1000",
+                        keepalives=1, keepalives_idle=30, keepalives_interval=10,
+                        keepalives_count=2, tcp_user_timeout=5000)
+                db = self._connection
             else:
                 db = sqlite3.connect(self.sqlite_path, timeout=5)
             try:
                 yield db
                 db.commit()
             except Exception:
-                db.rollback()
+                if self.postgres:
+                    # Never automatically replay a write whose outcome is unknown.
+                    db.close()
+                    self._connection = None
+                else: db.rollback()
                 raise
-            finally: db.close()
+            finally:
+                if not self.postgres: db.close()
+
+    def close(self):
+        with self.lock:
+            if self._connection is not None:
+                self._connection.close()
+                self._connection = None
+
+    def snapshot(self):
+        # One connection/transaction, not three remote TLS handshakes per refresh.
+        with self.transaction() as db:
+            settings = self.execute(db, "SELECT value, revision FROM zipon_settings WHERE scope = ?", ("family",)).fetchone()
+            total = self.execute(db, "SELECT COUNT(*) FROM zipon_events WHERE scope = ?", ("family",)).fetchone()[0]
+            rows = self.execute(db, "SELECT value FROM zipon_events WHERE scope = ? ORDER BY created_at DESC, id DESC LIMIT 50", ("family",)).fetchall()
+            state = self.execute(db, "SELECT value FROM zipon_state WHERE scope = ?", ("family",)).fetchone()
+            return json.loads(settings[0]), settings[1], [json.loads(r[0]) for r in rows], total, json.loads(state[0]) if state else None
 
     def execute(self, db, sql, params=()):
         return db.execute(sql.replace("?", "%s") if self.postgres else sql, params)

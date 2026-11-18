@@ -299,7 +299,7 @@ export class ZiponApp {
     if (this.page === "monitor") this.renderMonitor(); else if (this.page === "settings") this.renderSettings(); else if (this.page === "history") this.renderHistory(); else if (this.page === "devices") this.renderDevices(); else this.renderHome();
     this.updateLive();
   }
-  heading(title, description, eyebrow = "우리 집의 작은 변화까지") { return `<div class="z-heading"><p>${esc(eyebrow)}</p><h1>${title}</h1><span>${description}</span></div>${this.storageNotice()}`; }
+  heading(title, description, eyebrow = "우리 집의 작은 변화까지") { return `<div class="z-heading"><p>${esc(eyebrow)}</p><h1>${title}</h1><span>${description}</span></div>${this.storageNotice()}<div class="z-sync-note" data-storage-error role="status" hidden></div>`; }
   storageNotice() {
     return `<div class="z-storage-note" data-storage role="status">${icon("info", 17)}<span>${this.data.durable ? "설정과 이벤트는 가족 공간에 보관해요. 그래프는 이 접속의 최근 600개만 보여요." : this.data.mode === "development" ? "개발 확인용 임시 저장이에요. Streamlit에서 계속 보관하려면 외부 영구 저장소를 연결해 주세요." : "영구 저장소가 연결되지 않았어요. 설정과 기록은 이번 접속에만 남고 다시 접속하면 사라져요."}</span></div><div class="z-sync-note" data-sync hidden></div>`;
   }
@@ -402,6 +402,8 @@ export class ZiponApp {
     for (const b of this.root.querySelectorAll('[data-action="disconnect"]')) b.hidden = !isOpen;
     const alarm = this.root.querySelector("[data-alarm]");
     if (alarm) { alarm.hidden = !(fresh && (p?.gasAlarm || p?.intrusionAlarm)); alarm.textContent = p?.gasAlarm ? "화재·가스 위험 의심 · 설정한 원시 ADC 기준의 실습용 경보예요. 실제 상황을 직접 확인해 주세요." : "출입 의심 · 허용 시간 밖의 거리 변화예요. 사람의 출입이 확정된 것은 아니에요."; }
+    const storageError = this.root.querySelector("[data-storage-error]");
+    if (storageError) { storageError.hidden = !this.data.storageError; storageError.textContent = this.data.storageError || ""; }
     const sync = this.root.querySelector("[data-sync]");
     if (sync) { sync.hidden = !this.unsaved.length && !this.saveError && !this.droppedEvents; sync.textContent = this.droppedEvents ? `전송 대기가 한도를 넘어 ${this.droppedEvents}건을 보관하지 못했어요. ${this.unsaved.length}건 전송 대기 중이에요.` : this.saveError ? `${this.saveError} ${this.unsaved.length}건이 이 화면에서 전송을 기다려요. 화면을 닫기 전에 연결을 확인해 주세요.` : `${this.unsaved.length}건이 전송을 기다리고 있어요. 닫기 전에 저장 여부를 확인해 주세요.`; }
     const storage = this.root.querySelector("[data-storage]");
