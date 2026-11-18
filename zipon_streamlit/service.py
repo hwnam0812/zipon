@@ -41,9 +41,8 @@ class FamilyService:
         return self.owner + ":" + self.usb_session if self.usb_session else None
 
     def snapshot(self):
-        settings, revision = self.store.read_settings()
-        rows, total = self.store.list_events()
-        return {"settings": settings, "settingsRevision": revision, "events": rows, "eventTotal": total, "lastState": self.store.read_state(), "mode": self.store.mode, "durable": self.store.durable, "serverTime": utc_now()}
+        settings, revision, rows, total, state = self.store.snapshot()
+        return {"settings": settings, "settingsRevision": revision, "events": rows, "eventTotal": total, "lastState": state, "mode": self.store.mode, "durable": self.store.durable, "serverTime": utc_now()}
 
     @staticmethod
     def filters(p):
@@ -104,7 +103,7 @@ class FamilyService:
                 if not self.usb_session or sample["session"] != self.usb_session or not numeric(p.get("sampleAgeMs"), 0, 3500, True): raise ValidationError("현재 USB 연결의 새 측정만 보낼 수 있어요.")
                 seen_at = (datetime.now(timezone.utc) - timedelta(milliseconds=p["sampleAgeMs"])).isoformat(timespec="milliseconds").replace("+00:00", "Z")
                 self.store.write_state(sample, seen_at, self.usb_owner())
-            self.store.add_events(rows)
+            if rows: self.store.add_events(rows)
             return {"acceptedIds": [r["id"] for r in rows], "persistent": self.store.durable}
         if op == "events":
             day, kind, offset = self.filters(p)

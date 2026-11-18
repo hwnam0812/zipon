@@ -10,8 +10,7 @@ import uuid
 import streamlit as st
 
 from zipon_streamlit.auth import AttemptLimiter, password_matches, proof
-from zipon_streamlit.service import FamilyService
-from zipon_streamlit.storage import SessionStore, SqlStore
+from zipon_streamlit.screen import ScreenSession, open_service
 
 ROOT = Path(__file__).resolve().parent
 st.set_page_config(page_title="집온 · 우리 집 USB 모니터", page_icon="🏡", layout="wide", initial_sidebar_state="collapsed")
@@ -45,22 +44,6 @@ def setting(name):
 def limiter(): return AttemptLimiter()
 
 
-@st.cache_resource(show_spinner=False)
-def sql_store(url, development_path):
-    return SqlStore(url=url or None, sqlite_path=development_path or None)
-
-
-def get_store():
-    url, path = setting("DATABASE_URL"), os.environ.get("ZIPON_DEV_DB", "")
-    if url or path:
-        try: return sql_store(url, path)
-        except Exception:
-            # Never expose the connection string or a database driver's exception.
-            st.error("영구 저장소에 연결하지 못했어요. 이번 접속은 임시 기록만 사용해요. Streamlit Secrets의 연결 설정을 확인해 주세요.")
-    if "zipon_session_store" not in st.session_state: st.session_state.zipon_session_store = SessionStore()
-    return st.session_state.zipon_session_store
-
-
 def component_source():
     sources = []
     for name in ("model.mjs", "analysis.mjs", "serial.mjs", "app.mjs", "entry.mjs"):
@@ -74,7 +57,7 @@ def component_source():
 
 @st.cache_resource(show_spinner=False)
 def register_component(digest):
-    return st.components.v2.component("zipon_monitor_v4", js=component_source(), css=(ROOT / "streamlit_ui/style.css").read_text(), isolate_styles=True)
+    return st.components.v2.component("zipon_monitor_v4", html='<div data-zipon-bootstrap role="status" style="padding:32px;color:#294235">집온 화면을 준비하고 있어요. 오래 멈춰 있다면 페이지를 새로고침해 주세요.</div>', js=component_source(), css=(ROOT / "streamlit_ui/style.css").read_text(), isolate_styles=True)
 
 
 if "zipon_session_id" not in st.session_state: st.session_state.zipon_session_id = uuid.uuid4().hex
@@ -105,40 +88,40 @@ if not authenticated:
                 st.error("가족 비밀번호가 맞지 않아요. 다시 확인해 주세요.")
     st.stop()
 
-store = get_store()
-if "zipon_service" not in st.session_state or st.session_state.zipon_service.store is not store:
-    st.session_state.zipon_service = FamilyService(store, st.session_state.zipon_session_id)
-service = st.session_state.zipon_service
+if "zipon_screen" not in st.session_state:
+    url, path, owner = setting("DATABASE_URL"), os.environ.get("ZIPON_DEV_DB", ""), st.session_state.zipon_session_id
+    st.session_state.zipon_screen = ScreenSession(lambda: open_service(url, path, owner))
+screen = st.session_state.zipon_screen
 digest = hashlib.sha256(b"".join(p.read_bytes() for p in sorted((ROOT / "streamlit_ui").glob("*.mjs"))) + (ROOT / "streamlit_ui/style.css").read_bytes()).hexdigest()
 monitor = register_component(digest)
 
 
-@st.fragment(run_every=3)
+@st.fragment(run_every=1)
 def family_screen():
     # Re-check on periodic reruns too, so a changed/removed secret revokes access.
     current = setting("ADMIN_TOKEN")
     if not current or st.session_state.get("zipon_proof") != proof(current, st.session_state.zipon_session_id):
         st.session_state.pop("zipon_proof", None)
+        screen.close()
+        st.session_state.pop("zipon_screen", None)
         st.rerun()
-    try: data = service.snapshot()
-    except Exception:
-        st.error("가족 기록을 읽지 못했어요. 연결 설정을 확인해 주세요. 저장 성공으로 처리하지 않아요.")
+    notice = st.empty()
+    data = screen.poll()
+    if data is None:
+        if screen.error: notice.error("설정과 기록을 불러오지 못했어요. 연결 설정을 확인한 뒤 화면을 다시 열어 주세요.")
+        else: notice.info("집온 · 저장된 설정과 기록을 불러오고 있어요. 연결이 느려도 화면을 닫을 필요는 없어요.")
         return
-    data["reply"] = st.session_state.get("zipon_reply")
+    if screen.reply and screen.reply.get("ok") and screen.reply.get("result", {}).get("logout"):
+        screen.close()
+        for key in ("zipon_proof", "zipon_screen", "zipon_password_input"):
+            st.session_state.pop(key, None)
+        st.rerun()
     page = st.query_params.get("page", "home")
     data["initialPage"] = page if page in ("home", "monitor", "history", "settings", "devices") else "home"
     result = monitor(data=data, key="zipon_family_monitor", on_request_change=lambda: None, width="stretch")
     request = result.request
-    if request and isinstance(request, dict):
-        previous = st.session_state.get("zipon_reply")
-        if not previous or previous.get("id") != request.get("id"):
-            reply = service.handle(request, authenticated=True)
-            if reply.get("ok") and request.get("op") == "logout":
-                for key in ("zipon_proof", "zipon_reply", "zipon_service", "zipon_session_store", "zipon_password_input"):
-                    st.session_state.pop(key, None)
-                st.rerun()
-            st.session_state.zipon_reply = reply
-            st.rerun()
+    screen.enqueue(request)
+    screen.poll()
 
 
 family_screen()

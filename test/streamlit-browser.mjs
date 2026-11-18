@@ -2,7 +2,7 @@
 // Never reads/writes the family's existing preview or published records.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, readFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRequire } from "node:module";
@@ -14,6 +14,7 @@ const temporary = await mkdtemp(join(tmpdir(), "zipon-streamlit-isolated-"));
 const screenshots = "/tmp/opencode/zipon-streamlit-check";
 await mkdir(screenshots, { recursive: true });
 const log = join(temporary, "streamlit.log"), db = join(temporary, "records.sqlite"), password = `격리 검사 ${crypto.randomUUID()}`;
+const latency = join(temporary, "latency.txt");
 const origin = "http://localhost:8502/streamlit-check/";
 const errors = []; let checks = 0, browser, activePage;
 const checked = async (label, action) => { await action(); checks++; console.log(`통과 · ${label}`); };
@@ -49,7 +50,7 @@ async function shot(page, name) {
   await page.screenshot({ path: `${screenshots}/${name}.png`, fullPage: true });
 }
 try {
-  execFileSync("serve-bg", [log, "uv", "run", "--frozen", "streamlit", "run", "test/streamlit_runner.py", "--server.address", "0.0.0.0", "--server.port", "8502", "--server.baseUrlPath", "streamlit-check", "--server.headless", "true"], { env: { ...process.env, ZIPON_BROWSER_TEST_PASSWORD: password, ZIPON_BROWSER_TEST_DB: db, UV_PROJECT_ENVIRONMENT: join(homedir(), ".cache", "zipon-streamlit-venv"), PYTHONDONTWRITEBYTECODE: "1" }, stdio: "pipe" });
+  execFileSync("serve-bg", [log, "uv", "run", "--frozen", "streamlit", "run", "test/streamlit_runner.py", "--server.address", "0.0.0.0", "--server.port", "8502", "--server.baseUrlPath", "streamlit-check", "--server.headless", "true"], { env: { ...process.env, ZIPON_BROWSER_TEST_PASSWORD: password, ZIPON_BROWSER_TEST_DB: db, ZIPON_BROWSER_TEST_LATENCY: latency, UV_PROJECT_ENVIRONMENT: join(homedir(), ".cache", "zipon-streamlit-venv"), PYTHONDONTWRITEBYTECODE: "1" }, stdio: "pipe" });
   await expect.poll(async () => { try { return (await fetch(origin + "_stcore/health")).status; } catch { return 0; } }, { timeout: 25000 }).toBe(200);
   browser = await chromium.launch({ args: ["--no-sandbox"] });
   const page = activePage = await pageFor();
@@ -269,6 +270,46 @@ try {
     await expect(app(page)).toHaveCount(0);
     assert.equal(await page.evaluate(() => ziponTestUsb.port.opened), false);
     await unlock(page); assert.equal(dbRead("SELECT COUNT(*) FROM zipon_events WHERE id='isolated-imported-once'")[0][0], 1);
+  });
+  await checked("3초 지연 중에도 첫 로딩 안내·메뉴 반응·화면 선명도 유지", async () => {
+    await writeFile(latency, "slow");
+    const slow = activePage = await pageFor(558, 760);
+    await slow.goto(origin + "?page=monitor");
+    await slow.getByLabel("가족 비밀번호", { exact: true }).fill(password);
+    await slow.getByRole("button", { name: "가족 공간 열기", exact: true }).click();
+    await expect(slow.getByText(/집온 · 저장된 설정과 기록을 불러오고 있어요/)).toBeVisible({ timeout: 2500 });
+    await app(slow).waitFor();
+    await app(slow).evaluate(root => {
+      window.ziponDimSamples = [];
+      window.ziponDimTimer = setInterval(() => {
+        let faded = false;
+        for (let n = root; n; n = n.parentElement || n.getRootNode()?.host) {
+          if (n instanceof Element && Number(getComputedStyle(n).opacity) < 0.99) faded = true;
+        }
+        ziponDimSamples.push(faded);
+      }, 40);
+    });
+    const started = performance.now();
+    await nav(slow, "알림 설정");
+    await expect(slow.getByLabel("집 이름 *", { exact: true })).toBeVisible();
+    const navigationMs = performance.now() - started;
+    assert(navigationMs < 1500, `지연 중 메뉴 반응 ${navigationMs}ms`);
+    await slow.waitForTimeout(6500);
+    assert.equal(await slow.evaluate(() => { clearInterval(ziponDimTimer); return ziponDimSamples.some(Boolean); }), false);
+    console.log(`측정 · 저장 조회 3초 지연 중 메뉴 전환 ${Math.round(navigationMs)}ms · 흐림 관찰 0회`);
+    await shot(slow, "slow-storage-mobile");
+    await writeFile(latency, ""); await slow.close(); activePage = page;
+  });
+  await checked("저장 조회 실패에도 마지막 화면·오류 안내 유지·비밀 오류 미노출", async () => {
+    await writeFile(latency, "fail");
+    await expect(page.getByText(/저장 연결을 확인하지 못했어요/)).toBeVisible({ timeout: 15000 });
+    await expect(app(page)).toHaveCount(1);
+    await nav(page, "실시간 모니터링");
+    await expect(page.getByRole("heading", { name: "실시간 모니터링", exact: true })).toBeVisible();
+    assert(!(await page.locator("body").innerText()).includes("isolated-storage-failure"));
+    await shot(page, "storage-failure-desktop");
+    await writeFile(latency, "");
+    await expect(page.getByText(/저장 연결을 확인하지 못했어요/)).toHaveCount(0, { timeout: 15000 });
   });
   assert.deepEqual(errors, [], "브라우저 오류가 없어야 해요");
   console.log(`Streamlit 브라우저 격리 검사 ${checks}개 통과 (가상 USB, 실물 시험 아님)`);
