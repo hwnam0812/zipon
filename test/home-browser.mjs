@@ -70,7 +70,21 @@ async function saveSettings(page) {
   await expect(page.getByRole("button", { name: "설정 저장", exact: true })).toBeDisabled();
   await expect(page.getByRole("status").filter({ hasText: "우리 집 설정을 저장했어요." })).toBeVisible();
 }
-const navigate = (page, name) => page.getByRole("navigation", { name: /^(모바일 )?주 메뉴$/ }).getByRole("link", { name, exact: true }).click();
+const navigate = (page, name) => name === "우리 집"
+  ? page.locator(".brand, .mobile-brand").filter({ visible: true }).first().click()
+  : page.getByRole("navigation", { name: /^(모바일 )?주 메뉴$/ }).filter({ visible: true }).getByRole("link", { name, exact: true }).click();
+async function expandOutput(page) {
+  const details = page.locator(".output-advanced");
+  if (!await details.evaluate(n => n.open)) await details.locator("summary").click();
+}
+async function openLegacy(page, guide = false) {
+  const legacy = page.locator(".legacy-connection");
+  if (!await legacy.evaluate(n => n.open)) await legacy.locator(":scope > summary").click();
+  if (guide) { const details = page.locator(".usb-guide"); if (!await details.evaluate(n => n.open)) await details.locator(":scope > summary").click(); }
+}
+async function setupSection(page, name) {
+  await page.getByRole("navigation", { name: "설정 항목", exact: true }).getByRole("link", { name, exact: true }).click();
+}
 
 async function downloadHardware(page) {
   const link = page.getByRole("link", { name: "아두이노 코드·연결 안내 받기", exact: true });
@@ -84,9 +98,11 @@ async function downloadHardware(page) {
 try {
   const { page } = await pageFor({ width: 1440, height: 1000 });
   await checked("직접 연 설정 화면도 비밀번호 전에는 잠김", async () => {
-    await page.goto(`${origin}/settings`, { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "우리 가족 공간 열기" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "우리 집 알림 설정" })).toHaveCount(0);
+    for (const path of ["/gas-status", "/door-status", "/quiet-time", "/monitor", "/settings"]) {
+      await page.goto(`${origin}${path}`, { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { name: "우리 가족 공간 열기" })).toBeVisible();
+      await expect(page.locator(".status-detail-layout, .quick-output-actions, .quiet-window")).toHaveCount(0);
+    }
     await noOverflow(page);
   });
   await checked("틀린 비밀번호 안내와 올바른 비밀번호로 열기", async () => {
@@ -94,7 +110,10 @@ try {
     await page.getByRole("button", { name: "가족 공간 열기", exact: true }).click();
     await expect(page.getByRole("alert")).toContainText("가족 비밀번호가 맞지 않아요");
     await unlock(page);
-    await expect(page.getByRole("heading", { name: "우리 집 알림 설정" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "설정", exact: true })).toBeVisible();
+    await expect(page.locator(".quiet-window")).toHaveCount(0);
+    await page.getByRole("link", { name: "안심 시간 관리", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "안심 시간", exact: true })).toBeVisible();
     await expect(page.locator(".quiet-window")).toHaveCount(1);
   });
   await checked("안심 시간 추가·요일·자정 넘김을 저장하고 다시 읽기", async () => {
@@ -144,7 +163,7 @@ try {
   });
   await checked("휴대폰에서도 시간 입력과 삭제·저장·다시 열기", async () => {
     const { page: mobile } = await pageFor({ width: 390, height: 844 });
-    await mobile.goto(`${origin}/settings`, { waitUntil: "domcontentloaded" });
+    await mobile.goto(`${origin}/quiet-time`, { waitUntil: "domcontentloaded" });
     await unlock(mobile);
     await expect(mobile.locator(".quiet-window")).toHaveCount(3);
     await noOverflow(mobile);
@@ -160,10 +179,13 @@ try {
   });
   await checked("기기 연결 전 실제 측정값·기록이 없고 사이렌이 비활성", async () => {
     await navigate(page, "우리 집");
-    await expect(page.locator(".home-hero")).toContainText("집의 소식을");
+    await expect(page.locator(".home-status-line")).toContainText("연결 대기");
     await expect(page.locator(".sensor-number").first()).toContainText("—");
-    await expect(page.getByRole("button", { name: "부저 켜기", exact: false })).toBeDisabled();
-    await expect(page.getByRole("heading", { name: "오늘 감지된 문 움직임이 없어요" })).toBeVisible();
+    await expect(page.locator(".quick-output-actions").getByRole("button", { name: /^LED 켜기/ })).toBeDisabled();
+    await expect(page.locator(".quick-output-actions").getByRole("button", { name: /^부저 울리기/ })).toBeDisabled();
+    await expect(page.getByRole("link", { name: "문 작동 확인 상세 보기", exact: true })).toContainText("확인 불가");
+    await expect(page.getByRole("navigation", { name: "주 메뉴", exact: true }).getByRole("link")).toHaveText(["홈", "기록", "기기 관리", "안심 시간", "설정", "실시간"]);
+    await expect(page.getByRole("heading", { name: "아직 기록이 없어요" })).toBeVisible();
     await expect(page.getByText(/체험|예시 기록|상황 체험/)).toHaveCount(0);
     await noOverflow(page);
     await screenshot(page, "home-desktop");
@@ -185,17 +207,24 @@ try {
     };
     await page.route("**/downloads/zipon-mq135-usb-kit.zip", downloadRoute);
     await navigate(page, "기기 관리");
-    await expect(page.getByRole("heading", { name: "노트북으로 USB 연결" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "현재 배선 · V4 USB 직접 연결" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "V4 연결·배선·설치 파일 열기" })).toHaveAttribute("href", "/streamlit/?page=devices");
+    await openLegacy(page, true);
+    await expect(page.getByRole("heading", { name: "이전 V3 중계 전용 연결" })).toBeVisible();
+    await expect(page.locator(".usb-guide")).toContainText("현재 D9/D8·LED D7 배선에는 올리지 마세요");
     await expect(page.locator(".usb-guide")).toContainText("AO → A5 · DO 미연결 · D10 미사용");
     await expect(page.locator(".usb-guide")).toContainText("별도 안정화 5V");
-    const diagram = page.getByRole("img", { name: /MQ-135 VCC는 별도 5V/ });
+    await expect(page.locator(".usb-guide")).toContainText("Trig D7 · Echo D11");
+    await expect(page.locator(".usb-guide")).toContainText("사용하지 않음 · 초음파는 직접 전원 연결");
+    const diagram = page.getByRole("img", { name: /MQ-135는 별도 5V와 공통 GND/ });
     await expect(diagram).toBeVisible();
     assert.ok(await diagram.evaluate(img => img.complete && img.naturalWidth > 0));
     await downloadHardware(page);
     assert.ok(requests.length >= 1);
     assert.ok(requests.every(navigation => navigation === false));
     await page.unroute("**/downloads/zipon-mq135-usb-kit.zip", downloadRoute);
-    await expect(page.locator(".unavailable-feature").filter({ hasText: "앱 종료·잠금 중 비상 알림" })).toContainText("구현되지 않음");
+    await expect(page.locator(".sensor-settings")).toContainText("이번 연결의 감시");
+    await expect(page.locator("#home-name, .output-control")).toHaveCount(0);
     await screenshot(page, "devices-desktop");
     await page.setViewportSize({ width: 390, height: 844 });
     await noOverflow(page);
@@ -218,6 +247,7 @@ try {
     await page.route("**/downloads/zipon-mq135-usb-kit.zip", downloadRoute);
     await page.setViewportSize({ width: 558, height: 760 });
     await page.reload();
+    await openLegacy(page, true);
     await expect(page.getByRole("alert").filter({ hasText: "파일을 준비하지 못했어요" })).toBeVisible();
     const retry = page.getByRole("button", { name: "파일 준비 다시 시도", exact: true });
     await expect(retry).toBeEnabled();
@@ -243,11 +273,9 @@ try {
     await sample("browser-usb:1");
     await navigate(page, "우리 집");
     await page.reload();
-    const card = page.locator(".sensor-card").filter({ has: page.getByRole("heading", { name: "가스 센서 출력" }) });
-    await expect(card).toContainText("2.50");
-    await expect(card).toContainText("ADC 512");
-    await expect(card).toContainText("가스 누출 여부는 판단하지 않아요");
-    await expect(card.locator(".sensor-number")).toContainText("V");
+    const card = page.getByRole("link", { name: "가스 센서 상태 상세 보기", exact: true });
+    await expect(card.locator(".sensor-number")).toContainText("512");
+    await expect(card).toContainText("판단 불가");
     await expect(card).not.toContainText("µg/m³");
     await expect(card).not.toContainText("수치 정상");
     assert.equal((await home.db.prepare("SELECT COUNT(*) AS n FROM home_alerts WHERE kind = 'fire_risk'").first()).n, 0);
@@ -255,19 +283,26 @@ try {
     await page.setViewportSize({ width: 390, height: 844 });
     await noOverflow(page);
     await screenshot(page, "usb-home-mobile");
+    await card.click();
+    await expect(page.locator(".measurement-facts")).toContainText("2.50 V");
+    await expect(page.locator(".status-detail-primary")).toContainText("가스 누출 여부는 판단하지 않아요");
+    await expect(page.locator(".unapplied-threshold")).toContainText("미적용");
+    await noOverflow(page); await screenshot(page, "gas-detail-mobile");
+    await page.setViewportSize({ width: 1440, height: 1000 }); await screenshot(page, "gas-detail-desktop");
     for (const [index, adc] of [0, 1023].entries()) {
       await sample(`browser-endpoint:${index}`, adc);
       await page.reload();
-      await expect(card).toContainText("범위 끝값");
-      await expect(card).toContainText(`ADC ${adc}`);
-      await expect(card).toContainText(adc === 0 ? "0.00" : "5.00");
-      await expect(card).not.toContainText("수치 정상");
+      await expect(page.locator(".status-detail-primary")).toContainText("범위 끝값");
+      await expect(page.locator(".measurement-number")).toContainText(String(adc));
+      await expect(page.locator(".measurement-facts")).toContainText(adc === 0 ? "0.00 V" : "5.00 V");
+      await expect(page.locator("main")).not.toContainText("수치 정상");
     }
     await sample("browser-usb:2");
     await page.setViewportSize({ width: 320, height: 760 });
     await noOverflow(page);
     await page.goto(`${origin}/devices`, { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "우리 집 기기", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "기기 관리", exact: true })).toBeVisible();
+    await openLegacy(page);
     await noOverflow(page);
     const part = page.locator(".device-part").filter({ has: page.getByRole("heading", { name: "가스 센서", exact: true }) });
     await expect(part).toContainText("측정값 수신");
@@ -275,6 +310,7 @@ try {
     await screenshot(page, "usb-devices-320");
     await sample("browser-usb:3", null);
     await page.reload();
+    await openLegacy(page);
     await expect(part).toContainText("측정 실패");
     await page.setViewportSize({ width: 1440, height: 1000 });
     await navigate(page, "우리 집");
@@ -284,21 +320,41 @@ try {
     await sample("browser-usb:4", 0);
     await page.reload();
     await expect(card).toContainText("이전 경보 유지");
-    await expect(page.locator(".home-hero")).toContainText("이전에 남은 경보를 유지");
+    await expect(page.locator(".home-alarm")).toContainText("이전 경보 유지");
     await sample("browser-usb:5");
     await page.reload();
     await expect(card).toContainText("이전 경보 유지");
     await screenshot(page, "mq135-previous-alert");
   });
   await checked("문 거리 저장이 이전 센서 설정과 여러 안심 시간을 바꾸지 않는다", async () => {
-    await navigate(page, "기기 관리");
+    await navigate(page, "설정"); await setupSection(page, "문 기준 확인");
     const before = await storedSettings();
-    await expect(page.getByRole("heading", { name: "문 거리·가스 출력 기준", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "문 기준 확인", exact: true })).toBeVisible();
     await expect(page.locator("#sensor-dustThreshold")).toHaveCount(0);
     await page.locator("#sensor-closedDistance").fill("15");
-    await page.getByRole("button", { name: "기준값 저장", exact: true }).click();
-    await expect(page.getByRole("button", { name: "기준값 저장", exact: true })).toBeDisabled();
+    await saveSettings(page);
     assert.deepEqual(await storedSettings(), { ...before, closedDistance: 15 });
+  });
+  await checked("설정 수정 취소·탭과 메뉴의 미저장 변경 보호", async () => {
+    await setupSection(page, "기본 설정"); const before = await storedSettings();
+    await page.getByLabel("집 이름 *", { exact: true }).fill("저장하지 않을 이름");
+    await page.getByRole("button", { name: "수정 취소", exact: true }).click();
+    await expect(page.getByLabel("집 이름 *", { exact: true })).toHaveValue(before.homeName);
+    await page.getByLabel("집 이름 *", { exact: true }).fill("이동 전 수정");
+    await setupSection(page, "가스 기준 확인");
+    await expect(page.getByRole("dialog", { name: "수정한 내용을 버릴까요?" })).toBeVisible();
+    await page.getByRole("button", { name: "계속 수정", exact: true }).click();
+    await expect(page.getByLabel("집 이름 *", { exact: true })).toHaveValue("이동 전 수정");
+    await navigate(page, "기록"); await page.getByRole("button", { name: "수정 버리고 이동", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "출입·감지 기록", exact: true })).toBeVisible();
+    assert.deepEqual(await storedSettings(), before);
+    await navigate(page, "실시간"); await expect(page.locator(".output-control, .sensor-settings")).toHaveCount(0);
+    await navigate(page, "설정");
+    await page.getByLabel("집 이름 *", { exact: true }).fill("");
+    await page.getByRole("button", { name: "설정 저장", exact: true }).click();
+    await expect(page.getByRole("alert")).toContainText("집 이름은 1~20자");
+    await page.getByRole("button", { name: "수정 취소", exact: true }).click();
+    assert.deepEqual(await storedSettings(), before);
   });
   await checked("사이렌 재확인·대기·실행 응답·중지 응답 표시", async () => {
     const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
@@ -354,32 +410,51 @@ try {
   await checked("V3 문 보정·예열 확인·이번 연결 감시 시작과 보드 적용 응답을 구분", async () => {
     await pushV3();
     autoTimer = setInterval(() => { void pushV3().catch(error => errors.push(error.message)); }, 2000);
-    await navigate(page, "기기 관리");
-    const prepare = page.getByRole("button", { name: "이번 연결에서 감시 켜기 준비", exact: true });
-    await expect(prepare).toBeDisabled();
+    await navigate(page, "설정"); await setupSection(page, "문 기준 확인");
     const before = await storedSettings();
-    await page.getByRole("button", { name: "문이 닫힌 지금 거리로 보정", exact: true }).click();
+    await page.getByRole("button", { name: "현재 거리 넣기", exact: true }).click();
     await expect(page.locator("#sensor-closedDistance")).toHaveValue("12.3");
+    await page.getByRole("checkbox", { name: "문을 실제로 닫고 거리 기준을 확인했어요." }).check(); await saveSettings(page);
+    await setupSection(page, "가스 기준 확인");
     await page.getByRole("button", { name: "현재 ADC를 기준 칸에 넣기", exact: true }).click();
     await expect(page.locator("#gas-baseline")).toHaveValue("260");
-    await expect(prepare).toBeDisabled();
-    await page.getByRole("checkbox", { name: /제조사 예열·안정화 지침과 기준 ADC/ }).check();
-    await prepare.click();
+    await page.getByRole("checkbox", { name: "제조사 안내의 예열과 기준 출력을 직접 확인했어요." }).check(); await saveSettings(page);
     assert.equal((await storedSettings()).gasEnabled, false);
-    await page.getByRole("button", { name: "기준값 저장", exact: true }).click();
-    await expect(page.getByRole("button", { name: "기준값 저장", exact: true })).toBeDisabled();
+    await navigate(page, "기기 관리"); await openLegacy(page);
+    const prepare = page.getByRole("button", { name: "가스 감시 시작", exact: true }); await expect(prepare).toBeDisabled();
+    await page.getByRole("checkbox", { name: "이번 연결의 예열과 안정된 기준 출력을 직접 확인했어요." }).check(); await prepare.click();
+    assert.equal((await storedSettings()).gasEnabled, false);
+    await page.getByRole("dialog").getByRole("button", { name: "가스 감시 시작", exact: true }).click();
+    await expect(page.getByRole("dialog")).not.toBeVisible();
     const saved = await storedSettings();
     assert.equal(saved.gasEnabled, true); assert.equal(saved.gasArmSession, sid); assert.equal(saved.doorCalibrated, true);
     assert.deepEqual(saved.quietWindows, before.quietWindows); assert.equal(saved.dustThreshold, before.dustThreshold);
-    await navigate(page, "우리 집");
     await expect(page.locator(".board-configuration")).toContainText("보드의 설정 적용 대기");
     const response = await pushV3();
     await pushV3({ board: { configRevision: response.config.revision, doorStatus: "closed", gasStatus: "below" } });
     await expect(page.locator(".board-configuration")).toContainText("저장한 설정 적용 응답 수신");
+    await navigate(page, "우리 집");
+  });
+  await checked("문 상세는 확인한 기준의 ±10cm만 비교하고 자동 설정·제어를 바꾸지 않는다", async () => {
+    const before = await storedSettings(), commands = (await home.db.prepare("SELECT COUNT(*) AS n FROM home_output_commands").first()).n;
+    await page.getByRole("link", { name: "문 작동 확인 상세 보기", exact: true }).click();
+    for (const [distanceCm, label] of [[2.3, "기준 범위"], [22.3, "기준 범위"], [22.4, "거리 변화"], [null, "확인 불가"]]) {
+      await pushV3({ distanceCm, board: { doorStatus: distanceCm === null ? "unknown" : "closed" } });
+      await expect(page.locator("[data-door-comparison]")).toHaveText(label);
+    }
+    await expect(page.locator(".door-comparison")).toContainText("초음파 응답이 없어요");
+    await expect(page.locator("[data-door-delta]")).toContainText("—");
+    assert.deepEqual(await storedSettings(), before);
+    assert.equal((await home.db.prepare("SELECT COUNT(*) AS n FROM home_output_commands").first()).n, commands);
+    await screenshot(page, "door-detail-desktop");
+    await page.setViewportSize({ width: 390, height: 844 }); await noOverflow(page); await screenshot(page, "door-detail-mobile");
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await pushV3({ distanceCm: 12.3 }); await navigate(page, "우리 집");
   });
   await checked("LED 요청·전달 승인·실행 응답·현재 출력이 각각 표시된다", async () => {
+    await page.locator(".quick-output-actions").getByRole("button", { name: /^LED 켜기/ }).click();
+    await expandOutput(page);
     const led = page.locator(".output-channel").filter({ has: page.getByRole("button", { name: /^LED 켜기 / }) });
-    await page.getByRole("button", { name: /^LED 켜기 / }).click();
     await expect(led).toContainText("요청 대기");
     await expect(led.locator(".output-channel-status")).toContainText("꺼짐");
     const row = await latestOutput("led");
@@ -394,7 +469,10 @@ try {
   });
   await checked("부저는 재확인 뒤 독립 요청하며 일시 정지도 새 보고를 기다린다", async () => {
     const count = (await home.db.prepare("SELECT COUNT(*) AS n FROM home_output_commands").first()).n;
-    await page.getByRole("button", { name: "부저 시험 2초", exact: true }).click();
+    await page.locator(".quick-output-actions").getByRole("button", { name: /^부저 울리기/ }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "취소", exact: true }).click();
+    assert.equal((await home.db.prepare("SELECT COUNT(*) AS n FROM home_output_commands").first()).n, count);
+    await page.locator(".quick-output-actions").getByRole("button", { name: /^부저 울리기/ }).click();
     await expect(page.getByRole("dialog", { name: "부저를 울릴까요?" })).toBeVisible();
     assert.equal((await home.db.prepare("SELECT COUNT(*) AS n FROM home_output_commands").first()).n, count);
     await page.getByRole("button", { name: "부저 울리기 요청", exact: true }).click();
@@ -417,13 +495,13 @@ try {
   });
   await checked("자동 문·가스 출력 경고의 기록과 실패·끊김을 안전 상태로 표시하지 않는다", async () => {
     await pushV3({ gasAdc: 500, gasVoltageV: 2.4438, distanceCm: 50, board: { doorStatus: "open", gasStatus: "alert", gasAlarm: true, ledOn: true, buzzerOn: true, ledSource: "gas", buzzerSource: "gas" }, events: ["door_open", "gas_alert"] });
-    await expect(page.locator(".home-hero")).toContainText("가스 출력 이상");
-    await expect(page.locator(".sensor-card").first()).toContainText("화재 여부 확인 필요");
+    await expect(page.locator(".home-alarm")).toContainText("가스 출력 경고");
+    await expect(page.locator(".status-card").first()).toContainText("출력 경고 기록 있음");
     await expect(page.locator(".event-list")).toContainText("현관문이 열렸어요");
     await screenshot(page, "automation-home-desktop");
     await page.setViewportSize({ width: 390, height: 844 });
     await noOverflow(page); await screenshot(page, "automation-home-mobile");
-    await navigate(page, "출입 기록");
+    await navigate(page, "기록");
     await page.getByRole("button", { name: "가스 출력", exact: true }).click();
     await expect(page.locator(".event-list")).toContainText("가스 출력 이상·화재 여부 확인 필요");
     await page.getByRole("button", { name: "제어·설정", exact: true }).click();
@@ -431,27 +509,33 @@ try {
     await noOverflow(page); await screenshot(page, "automation-history-mobile");
     await navigate(page, "우리 집");
     await pushV3({ gasAdc: null, gasVoltageV: null, distanceCm: null, board: { gasStatus: "fault", doorStatus: "unknown", ledOn: false, buzzerOn: false } });
-    await expect(page.locator(".sensor-card").nth(1)).toContainText("초음파 응답 없음·측정 실패");
-    await expect(page.locator(".sensor-card").first()).toContainText("출력 이상 기록 유지");
-    await expect(page.locator(".sensor-card").first().locator(".sensor-number")).toContainText("—");
+    await expect(page.locator(".status-card").nth(1)).toContainText("초음파 응답 없음");
+    await expect(page.locator(".status-card").first()).toContainText("출력 경고 기록 있음");
+    await expect(page.locator(".status-card").first().locator(".sensor-number")).toContainText("—");
     await screenshot(page, "automation-failed-sensors-mobile");
   });
   await checked("응답이 지연돼도 마지막 측정의 유효 시간이 지나면 켜기·시험을 막는다", async () => {
     clearInterval(autoTimer); autoTimer = null; await autoPending;
     await home.db.prepare("UPDATE home_state SET value = json_set(value, '$.lastSeen', ?) WHERE scope = 'family'").bind(new Date(Date.now() - 11000).toISOString()).run();
     await page.reload();
-    await expect(page.getByRole("button", { name: /^LED 켜기 / })).toBeEnabled();
+    const ledQuick = page.locator(".quick-output-actions").getByRole("button", { name: /^LED 켜기/ });
+    await expect(ledQuick).toBeEnabled();
     let release;
     const block = { promise: new Promise(resolve => { release = resolve; }), waiting: 0, delivered: 0 };
     snapshotBlocks.set(page, block);
     try {
       await expect.poll(() => block.waiting).toBeGreaterThan(0);
-      await expect(page.getByRole("button", { name: /^LED 켜기 / })).toBeDisabled({ timeout: 7000 });
+      await expect(ledQuick).toBeDisabled({ timeout: 7000 });
     } finally { snapshotBlocks.delete(page); release(); }
     await expect.poll(() => block.delivered).toBeGreaterThan(0);
-    await expect(page.getByRole("button", { name: /^LED 켜기 / })).toBeDisabled();
+    await expect(ledQuick).toBeDisabled();
+    await expandOutput(page);
     await expect(page.locator(".output-channel-status").first()).toContainText("현재 출력 미확인");
-    await expect(page.locator(".home-hero")).toContainText("가스 출력 이상");
+    await expect(page.locator(".home-alarm")).toContainText("가스 출력 경고");
+    await page.getByRole("link", { name: "문 작동 확인 상세 보기", exact: true }).click();
+    await expect(page.locator("[data-door-comparison]")).toHaveText("확인 불가");
+    await expect(page.locator("[data-door-delta]")).toContainText("—");
+    await navigate(page, "우리 집");
     await noOverflow(page); await screenshot(page, "automation-offline-mobile");
     await page.setViewportSize({ width: 320, height: 740 }); await noOverflow(page);
     await navigate(page, "기기 관리"); await noOverflow(page); await screenshot(page, "automation-devices-320");

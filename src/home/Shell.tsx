@@ -1,22 +1,23 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
-import { Activity, Bell, Check, ChevronRight, Clock3, House, LayoutGrid, LockKeyhole, LogOut, Radio, ShieldCheck, X } from "lucide-react";
+import { Activity, Bell, Check, ChevronRight, Clock3, House, LockKeyhole, LogOut, Radio, Settings2, X } from "lucide-react";
 import { useHome } from "./HomeProvider";
 import FamilyGate from "./FamilyGate";
 import { Modal, Pill } from "./ui";
 import { kstClock, kstDay } from "../lib/home-model";
 
 const pages = [
-  { to: "/", label: "우리 집", icon: LayoutGrid },
-  { to: "/monitor", label: "실시간 모니터링", icon: Activity },
-  { to: "/history", label: "출입 기록", icon: Clock3 },
-  { to: "/settings", label: "알림 설정", icon: Bell },
+  { to: "/", label: "홈", icon: House },
+  { to: "/history", label: "기록", icon: Clock3 },
   { to: "/devices", label: "기기 관리", icon: Radio },
+  { to: "/quiet-time", label: "안심 시간", icon: Clock3 },
+  { to: "/settings", label: "설정", icon: Settings2 },
+  { to: "/monitor", label: "실시간", icon: Activity },
 ];
 export default function Shell() {
   const { state, actions } = useHome(), location = useLocation();
   const [alertsOpen, setAlertsOpen] = useState(false);
-  const page = pages.find(p => p.to === location.pathname) ?? pages[0];
+  const page = pages.find(p => p.to === location.pathname) ?? { label: location.pathname === "/gas-status" ? "가스 센서 상태" : location.pathname === "/door-status" ? "문 작동 확인" : "우리 집" };
   const unread = state.snapshot?.alerts.filter(a => !a.read_at) ?? [];
   const homeName = state.snapshot?.settings.homeName ?? "우리 집";
   useEffect(() => { setAlertsOpen(false); }, [state.authenticated]);
@@ -25,14 +26,13 @@ export default function Shell() {
     <a className="skip-link" href="#main-content">본문으로 이동</a>
     <aside className="sidebar">
       <Link to="/" className="brand" aria-label="집온 홈"><span className="brand-icon"><House size={25} strokeWidth={1.7}/></span><span>집온</span><span className="brand-latin">zipon</span></Link>
-      <p className="brand-tagline">우리 집을 잇는 작은 안심</p>
       <nav className="main-nav" aria-label="주 메뉴">{pages.map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => `nav-item${isActive ? " is-active" : ""}`}><Icon size={20} strokeWidth={1.7}/><span>{label}</span><i/></NavLink>)}</nav>
-      <div className="sidebar-bottom"><div className="sidebar-note"><ShieldCheck size={24} strokeWidth={1.6}/><h2>멀리 있어도, 가까이</h2><p>소중한 가족이 있는 집,<br/>집온과 함께 살펴봐요.</p><span className="little-leaf" aria-hidden="true">⌁</span></div>
+      <div className="sidebar-bottom">
         <button className="family-button" type="button" onClick={actions.leave}><span className="family-avatar">우</span><span><b>우리 가족</b><small>가족 공간 닫기</small></span><LogOut size={17}/></button>
       </div>
     </aside>
     <header className="topbar"><div className="breadcrumbs"><House size={16}/><span>{homeName}</span><ChevronRight size={13}/><span>{page.label === "우리 집" ? "대시보드" : page.label}</span></div><Link className="mobile-brand" to="/"><House size={23}/>집온</Link>
-      <div className="topbar-actions"><button className="mode-label mode-label--family" type="button" onClick={actions.leave} aria-label="가족 공간 닫기"><LockKeyhole size={12}/>가족 공간<LogOut size={12}/></button><button className="icon-button notification-button" type="button" onClick={() => setAlertsOpen(true)} aria-label={`알림 ${unread.length}개`}><Bell size={20} strokeWidth={1.7}/>{unread.length > 0 && <span className="notification-dot">{unread.length > 9 ? "9+" : unread.length}</span>}</button><span className="topbar-divider"/><span className="topbar-avatar" aria-label="우리 가족">우</span></div>
+      <div className="topbar-actions"><button className="mode-label mode-label--family" type="button" onClick={actions.leave} aria-label="가족 공간 닫기"><LockKeyhole size={12}/>가족 공간<LogOut size={12}/></button><button className="icon-button notification-button" type="button" onClick={() => setAlertsOpen(true)} aria-label={`알림 ${unread.length}개`}><Bell size={20} strokeWidth={1.7}/>{unread.length > 0 && <span className="notification-dot">{unread.length > 9 ? "9+" : unread.length}</span>}</button></div>
     </header>
     <main id="main-content" className="app-main" tabIndex={-1}>
       {state.error && <div className="connection-error" role="alert"><Radio size={18}/><p>{state.error} <strong>현재 상태는 확인되지 않았어요.</strong></p><button type="button" onClick={() => void actions.refresh()}>다시 불러오기</button></div>}

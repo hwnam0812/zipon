@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DEFAULT_SETTINGS, MAX_POINTS, MAX_EVENTS, clone, kstParts, inWindows, validateSettings, gasReady, parseFrame, boundedPush, eventRecord } from "../streamlit_ui/model.mjs";
+import { DEFAULT_SETTINGS, MAX_POINTS, MAX_EVENTS, clone, kstParts, inWindows, validateSettings, gasReady, compareDoorDistance, parseFrame, boundedPush, eventRecord } from "../streamlit_ui/model.mjs";
 import { DistanceAnalysis } from "../streamlit_ui/analysis.mjs";
 import { UsbConnection } from "../streamlit_ui/serial.mjs";
 import { ZiponApp } from "../streamlit_ui/app.mjs";
@@ -11,6 +11,21 @@ const settings = () => { const s = clone(DEFAULT_SETTINGS); s.intrusion.enabled 
 const point = distanceCm => ({ distanceCm });
 const wall = kst("2026-11-16T12:00:00");
 const advance = (a, s, values, start = 0, time = wall) => values.map((d, n) => a.update(point(d), s, time + n * 1000, start + n * 1000)).at(-1);
+
+test("직접 확인 표시가 없는 이전 거리 설정은 기준을 확인한 것으로 만들지 않는다", () => {
+  const s = clone(DEFAULT_SETTINGS); delete s.intrusion.baselineConfirmed;
+  assert.equal(validateSettings(s).intrusion.baselineConfirmed, false);
+  s.intrusion.baselineConfirmed = true; assert.equal(validateSettings(s).intrusion.baselineConfirmed, true);
+  s.intrusion.baselineConfirmed = "true"; assert.throws(() => validateSettings(s), /닫힘 기준/);
+});
+
+test("문 표시용 ±10cm 경계·초과·무응답·지난 값은 감지 설정과 분리된다", () => {
+  const before = clone(DEFAULT_SETTINGS);
+  for (const d of [2.1, 12.1, 22.1]) assert.equal(compareDoorDistance(d, 12.1, true).state, "within");
+  for (const d of [2.1, 22.3]) assert.equal(compareDoorDistance(d, 12.2, true).state, "outside");
+  for (const [distance, baseline, fresh] of [[null, 12, true], [12, null, true], [12, 12, false], [0, 12, true], [401, 12, true], [12, NaN, true]]) assert.deepEqual(compareDoorDistance(distance, baseline, fresh), { state: "unavailable", delta: null });
+  assert.deepEqual(DEFAULT_SETTINGS, before);
+});
 
 test("V4 기본값은 실제 측정과 예열·출입 감시를 만들어 내지 않는다", () => {
   assert.equal(gasReady(DEFAULT_SETTINGS), false); assert.equal(DEFAULT_SETTINGS.intrusion.enabled, false);
@@ -89,11 +104,13 @@ test("첫 측정 전달 직전에도 빈 화면은 오류 없이 제어를 잠�
   const control = { disabled: false };
   const view = Object.assign(Object.create(ZiponApp.prototype), {
     main: {}, root: { querySelectorAll: selector => selector === "[data-control]" ? [control] : [], querySelector: () => null },
-    data: {}, settings: clone(DEFAULT_SETTINGS), last: null, usb: { fresh: true }, connection: { state: "connected" }, lease: true,
+    data: { mode: "development" }, settings: clone(DEFAULT_SETTINGS), last: null, usb: { fresh: true }, connection: { state: "connected" }, lease: true,
   });
   assert.doesNotThrow(() => view.updateLive()); assert.equal(control.disabled, true);
   view.last = { gasRaw: 120, distanceCm: 12, gasState: "disabled", config: 0, led: false, buzzer: false };
   assert.doesNotThrow(() => view.updateLive()); assert.equal(control.disabled, false);
+  view.data.storageError = "격리 저장 실패";
+  view.updateLive(); assert.equal(control.disabled, true);
 });
 async function fixture() {
   const serial = installFakeUsb({ install: false }); let now = 1000;
@@ -167,4 +184,39 @@ test("권한 거절·미지원·잘못된 스케치 시간 초과 안내", async
   const f = await fixture();
   try { await f.usb.close(); f.port.skipReady = true; await f.usb.connect(true); f.advance(9000); f.usb.tick(); await f.usb.closing; assert(!f.usb.ready); assert(f.statuses.at(-1).message.includes("V4")); }
   finally { await f.usb.destroy(); }
+});
+
+test("포트 열기 실패는 한국어 복구 안내·미소유 포트 닫지 않음·재시도 가능", async () => {
+  const serial = installFakeUsb({ install: false }), statuses = [];
+  const usb = new UsbConnection({ serial, onStatus: s => statuses.push(s) });
+  const open = serial.port.open.bind(serial.port);
+  try {
+    for (const name of ["NetworkError", "InvalidStateError", "NotFoundError"]) {
+      serial.port.open = async () => { throw new DOMException("Failed to execute 'open' on 'SerialPort': Failed to open serial port.", name); };
+      await assert.rejects(usb.connect(), error => {
+        assert.match(error.message, /시리얼 모니터·플로터/);
+        assert.match(error.message, /다른 USB 연결 탭/);
+        assert.match(error.message, /다시 꽂고 UNO 포트/);
+        assert.doesNotMatch(error.message, /Failed to|취소/);
+        assert.equal(statuses.at(-1).message, error.message);
+        return true;
+      });
+      assert.equal(usb.port, null); assert.equal(usb.reader, null); assert.equal(usb.writer, null);
+      assert.equal(usb.opening, false); assert.equal(usb.closing, null);
+      assert.equal(serial.port.closes, 0); assert.equal(serial.port.writes.length, 0); assert.equal(usb.fresh, false);
+    }
+    serial.port.open = open;
+    await usb.connect(); await new Promise(resolve => setImmediate(resolve));
+    assert(usb.ready); serial.port.sample(); await new Promise(resolve => setImmediate(resolve)); assert(usb.fresh);
+  } finally { await usb.destroy(); }
+});
+
+test("권한 오류는 포트 점유로 단정하지 않고 별도 탭·권한 안내", async () => {
+  for (const name of ["SecurityError", "NotAllowedError"]) {
+    const serial = installFakeUsb({ install: false });
+    serial.port.open = async () => { throw new DOMException("isolated denied access", name); };
+    const usb = new UsbConnection({ serial });
+    try { await assert.rejects(usb.connect(), /별도 탭.*권한을 허용/); assert.equal(serial.port.closes, 0); }
+    finally { await usb.destroy(); }
+  }
 });

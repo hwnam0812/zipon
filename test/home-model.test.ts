@@ -1,10 +1,24 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { activeQuietWindows, analyzeSample, defaultSettings, emptySensor, isQuietTime, kstDay, maxQuietWindows, normalizeHomeSettings, quietDaysLabel, validateHomeSettings, type QuietWindow } from "../src/lib/home-model.ts";
+import { activeQuietWindows, analyzeSample, compareDoorDistance, defaultSettings, emptySensor, isQuietTime, kstDay, maxQuietWindows, normalizeHomeSettings, quietDaysLabel, validateHomeSettings, type QuietWindow } from "../src/lib/home-model.ts";
 
 const settings = normalizeHomeSettings();
 const at = (value: string) => Date.parse(`${value}+09:00`);
 const window = (change: Partial<QuietWindow> = {}): QuietWindow => ({ ...defaultSettings.quietWindows[0], days: [...defaultSettings.quietWindows[0].days], ...change });
+
+test("문 화면 비교는 ±10cm 경계를 포함하고 기준·설정·원래 감지를 변경하지 않는다", () => {
+  const before = structuredClone(settings);
+  for (const [distance, baseline, state] of [[12, 12, "within"], [2, 12, "within"], [22, 12, "within"], [22.1, 12.1, "within"], [22.2, 12.1, "outside"], [2.1, 12.2, "outside"]] as const) {
+    assert.equal(compareDoorDistance(distance, baseline, true).state, state);
+  }
+  assert.deepEqual(settings, before);
+});
+
+test("문 화면은 미보정·무응답·오래된 값·잘못된 거리를 정상으로 표시하지 않는다", () => {
+  for (const [distance, baseline, fresh] of [[12, null, true], [null, 12, true], [12, 12, false], [0, 12, true], [401, 12, true], [12, Number.NaN, true], [Number.POSITIVE_INFINITY, 12, true]] as const) {
+    assert.deepEqual(compareDoorDistance(distance, baseline, fresh), { state: "unavailable", delta: null });
+  }
+});
 
 test("MQ-135의 지속적인 최대 출력도 농도·화재 경보로 환산하지 않는다", () => {
   let state = { ...emptySensor };

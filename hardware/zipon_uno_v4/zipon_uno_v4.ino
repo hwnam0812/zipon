@@ -1,6 +1,11 @@
 // ZIPON USB V4 — practice only, NOT a certified gas/fire/security alarm.
-// UNO R3: MQ-135 AO A5; HC-SR04 Trig D9, Echo D11; LED D8 + 330 ohm;
-// SMALL PASSIVE piezo D6. Separate regulated MQ-135 5V, common GND.
+// UNO R3 confirmed wiring: MQ-135 AO A5; HC-SR04 Trig D9, Echo D8;
+// LED D7 through 330 ohm; small PASSIVE PIEZO D6 through its own 330 ohm.
+// HC-SR04 VCC -> UNO 5V directly; GND -> UNO GND. No external capacitor used.
+// USB bench test: sensors share UNO 5V/GND. Real power stability is unverified.
+// No external 5V/9V/VIN supply in this USB-powered test configuration.
+// Gas raw ADC only, not ppm. 0/1023 are ADC limits, not safety judgments.
+// Outputs and gas monitoring start OFF; no startup beep or LED blink test.
 // USB 9600, flat newline-delimited JSON. No credentials, heap Strings or JSON library.
 #include <Arduino.h>
 #include <avr/interrupt.h>
@@ -10,7 +15,10 @@
 #if !defined(__AVR_ATmega328P__)
 #error "Select Arduino Uno (ATmega328P)"
 #endif
-const uint8_t LED_PIN=8, BUZZER_PIN=6, TRIG_PIN=9, ECHO_PIN=11;
+const uint8_t LED_PIN=7, BUZZER_PIN=6, TRIG_PIN=9, ECHO_PIN=8;
+// UNO D8 is PB0 / PCINT0, NOT PB3 / PCINT3 (D11).
+const uint8_t ECHO_PORT_BIT=PB0, ECHO_INTERRUPT_BIT=PCINT0;
+static_assert(ECHO_PIN==8, "Update the AVR echo port/interrupt mapping if the pin changes.");
 const char PROTOCOL[]="ZIPON_USB_V4";
 char inputLine[256], session[17]="";
 uint16_t used=0; bool discard=false; uint32_t lastCommandId=0;
@@ -152,7 +160,10 @@ void processLine() {
   } else if (!strcmp(type,"config")) {
     uint32_t threshold,recovery,hold,recover,revision; bool enabled;
     if (tokenCount!=10 || !boolToken("gasEnabled",enabled) || !number("gasThreshold",1,1022,threshold) || !number("gasRecovery",1,1022,recovery) || recovery>=threshold || !number("gasHoldMs",5000,60000,hold) || !number("gasRecoveryMs",5000,60000,recover) || !number("rev",1,2147483647UL,revision)) { ack(id,false,F("invalid")); return; }
-    if (gasAlarm) { ack(id,false,F("alarm_active")); return; }
+     if (gasAlarm) { ack(id,false,F("alarm_active")); return; }
+     // Do not begin a new monitoring session from an absent or rail-limited ADC.
+     // An already running alarm is never cleared by this readiness check.
+     if (enabled && (gasRaw<=0 || gasRaw>=1023)) { ack(id,false,F("gas_not_ready")); return; }
     gasEnabled=enabled; thresholdAdc=threshold; recoveryAdc=recovery; gasHoldMs=hold; gasRecoveryMs=recover; configRevision=revision; gasTiming=false;
     evaluateGas(gasRaw,now); accepted=true;
   } else if (!strcmp(type,"intrusion")) {
@@ -163,7 +174,7 @@ void processLine() {
   ack(id,accepted,accepted?F("applied"):F("invalid"));
 }
 ISR(PCINT0_vect) {
-  bool high=PINB&_BV(PB3);
+  bool high=PINB&_BV(ECHO_PORT_BIT);
   if (echoPhase==1 && high) { echoRise=micros(); echoPhase=2; }
   else if (echoPhase==2 && !high) { echoWidth=micros()-echoRise; echoReady=true; echoPhase=0; }
 }
@@ -193,7 +204,7 @@ void setup() {
   digitalWrite(LED_PIN,LOW); pinMode(LED_PIN,OUTPUT); digitalWrite(BUZZER_PIN,LOW); pinMode(BUZZER_PIN,OUTPUT);
   digitalWrite(TRIG_PIN,LOW); pinMode(TRIG_PIN,OUTPUT); pinMode(ECHO_PIN,INPUT); pinMode(10,INPUT);
   analogReference(DEFAULT); pinMode(A5,INPUT); analogRead(A5);
-  PCICR|=_BV(PCIE0); PCMSK0|=_BV(PCINT3);
+  PCICR|=_BV(PCIE0); PCMSK0|=_BV(ECHO_INTERRUPT_BIT);
   Serial.begin(9600); tx.println(F("{\"type\":\"boot\",\"protocol\":\"ZIPON_USB_V4\"}")); tx.pump();
   lastGas=lastAverage=millis();
 }

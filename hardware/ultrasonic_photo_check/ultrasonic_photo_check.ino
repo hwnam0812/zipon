@@ -1,13 +1,14 @@
-// Diagnostic ONLY. User-confirmed wiring: Trig -> D9, Echo -> D11.
+// Diagnostic ONLY. Latest user wiring: Trig -> D7, Echo -> D11.
 // Earlier visual inference of D8/D9 was incorrect and has been withdrawn.
 // Keep the user's wiring. This is NOT the app firmware.
 // No gas sensing, networking, commands, LED indication or buzzer activation.
+// VCC -> UNO 5V directly; 220uF parallel across VCC(+) and GND(-), NOT in series.
 #include <Arduino.h>
 #if !defined(__AVR_ATmega328P__)
 #error "Select Arduino Uno (ATmega328P)."
 #endif
 
-const uint8_t TRIG_PIN = 9;
+const uint8_t TRIG_PIN = 7;
 const uint8_t ECHO_PIN = 11;
 const uint8_t BUZZER_PIN = 6;
 
@@ -20,7 +21,7 @@ void setup() {
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
   Serial.begin(115200);
-  Serial.println(F("CHECK ONLY: TRIG=D9 ECHO=D11; no app connection"));
+  Serial.println(F("CHECK ONLY: TRIG=D7 ECHO=D11; no app connection"));
   delay(1000);
 }
 

@@ -7,11 +7,11 @@ export const DEFAULT_SETTINGS = {
   homeName: "우리 집", quietEnabled: true,
   quietWindows: [{ id: "night", name: "밤 시간", enabled: true, start: "22:00", end: "07:00", days: [0, 1, 2, 3, 4, 5, 6] }],
   gas: { warmupConfirmed: false, baseline: null, threshold: null, recovery: null, holdSeconds: 10, recoverySeconds: 10 },
-  intrusion: { enabled: false, baselineCm: 12, deltaCm: 8, holdSeconds: 2, recoverySeconds: 2, cooldownSeconds: 30, allowedWindows: [] },
+  intrusion: { enabled: false, baselineCm: 12, baselineConfirmed: false, deltaCm: 8, holdSeconds: 2, recoverySeconds: 2, cooldownSeconds: 30, allowedWindows: [] },
 };
 export const EVENT_TITLES = {
   usb_connected: "USB 연결", usb_disconnected: "USB 연결 해제", device_boot: "보드 재시작",
-  gas_alert: "화재·가스 위험 의심", gas_clear: "가스 출력 경보 해제", intrusion_alert: "출입 의심 감지",
+  gas_alert: "가스 원시 출력 경고", gas_clear: "가스 출력 경보 해제", intrusion_alert: "출입 의심 감지",
   intrusion_clear: "출입 의심 해제", intrusion_stopped: "출입 감시 요청 종료", door_open: "기준 거리 벗어남", door_closed: "기준 거리 복귀",
   led_on: "LED 작동", led_off: "LED 정지", buzzer_on: "부저 작동", buzzer_off: "부저 정지",
   sensor_error: "센서 측정 오류", sensor_recovered: "센서 측정 복구", command_requested: "출력 제어 요청",
@@ -22,6 +22,13 @@ export const clone = value => JSON.parse(JSON.stringify(value));
 export const finite = (n, min, max) => typeof n === "number" && Number.isFinite(n) && n >= min && n <= max;
 export const integer = (n, min, max) => finite(n, min, max) && Number.isInteger(n);
 export const object = v => v !== null && typeof v === "object" && !Array.isArray(v);
+// Display only: no calibration, event, or automatic output is changed here.
+export function compareDoorDistance(distance, baseline, fresh) {
+  if (!fresh || !finite(distance, 2, 400) || !finite(baseline, 2, 390)) return { state: "unavailable", delta: null };
+  const delta = distance - baseline;
+  const boundarySlack = Number.EPSILON * Math.max(distance, baseline) * 4;
+  return { state: Math.abs(delta) <= 10 + boundarySlack ? "within" : "outside", delta };
+}
 export function kstParts(time = Date.now()) {
   const d = new Date(time + 9 * 3600000);
   return { day: d.getUTCDay(), minute: d.getUTCHours() * 60 + d.getUTCMinutes(), date: d.toISOString().slice(0, 10), clock: d.toISOString().slice(11, 19) };
@@ -53,8 +60,9 @@ export function validateSettings(s) {
   if (![g.baseline, g.threshold, g.recovery].every(n => n === null || integer(n, 1, 1022))) throw new Error("가스 ADC는 1~1022 사이 정수로 입력해 주세요.");
   if (g.baseline !== null && g.threshold !== null && g.baseline >= g.threshold || g.recovery !== null && g.threshold !== null && g.recovery >= g.threshold || g.recovery !== null && g.baseline !== null && g.recovery < g.baseline) throw new Error("가스 기준값 ≤ 복귀 기준 < 경보 기준이 되도록 입력해 주세요.");
   if (!object(i) || typeof i.enabled !== "boolean" || !finite(i.baselineCm, 2, 390) || !finite(i.deltaCm, 2, 100) || !integer(i.holdSeconds, 1, 30) || !integer(i.recoverySeconds, 1, 30) || !integer(i.cooldownSeconds, 5, 600)) throw new Error("거리 기준·변화량·지속 시간·반복 방지 시간을 확인해 주세요.");
+  if (i.baselineConfirmed !== undefined && typeof i.baselineConfirmed !== "boolean") throw new Error("닫힘 기준을 직접 확인했는지 선택해 주세요.");
   checkWindows(i.allowedWindows);
-  return clone({ ...s, homeName: s.homeName.trim() });
+  return clone({ ...s, homeName: s.homeName.trim(), intrusion: { ...i, baselineConfirmed: i.baselineConfirmed === true } });
 }
 export function gasReady(settings) {
   const g = settings.gas;

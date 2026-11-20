@@ -58,6 +58,19 @@ class ValidationTests(unittest.TestCase):
                 s = deepcopy(DEFAULT_SETTINGS); s["gas"][field] = value
                 with self.assertRaises(ValidationError): validate_settings(s)
 
+    def test_closed_baseline_confirmation_is_explicit_and_legacy_safe(self):
+        s = deepcopy(DEFAULT_SETTINGS)
+        del s["intrusion"]["baselineConfirmed"]
+        normalized = validate_settings(s)
+        self.assertFalse(normalized["intrusion"]["baselineConfirmed"])
+        self.assertEqual(normalized["intrusion"]["baselineCm"], s["intrusion"]["baselineCm"])
+        for value in [True, False]:
+            s["intrusion"]["baselineConfirmed"] = value
+            self.assertEqual(validate_settings(s)["intrusion"]["baselineConfirmed"], value)
+        for value in [1, None, "true"]:
+            s["intrusion"]["baselineConfirmed"] = value
+            with self.assertRaises(ValidationError): validate_settings(s)
+
     def test_threshold_order(self):
         for baseline, recovery, threshold in [(300, 250, 400), (200, 400, 400), (400, 400, 300)]:
             s = deepcopy(DEFAULT_SETTINGS); s["gas"].update(baseline=baseline, recovery=recovery, threshold=threshold)

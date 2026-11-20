@@ -4,6 +4,8 @@
 #include <cassert>
 #include <iostream>
 
+static_assert(TRIG_PIN == 7 && ECHO_PIN == 11 && LED_PIN == 8 && BUZZER_PIN == 6, "Delivered V3 pins must match D7/D11 wiring.");
+
 const char *SID = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const char *C1 = "12345678-1234-1234-1234-123456789abc";
 const char *C2 = "22345678-1234-1234-1234-123456789abc";

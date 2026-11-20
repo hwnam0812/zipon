@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1280" viewBox="0 0 1000 1280" role="img" aria-labelledby="title desc">
   <title id="title">집온 V3 UNO R3·MQ-135·HC-SR04·LED·수동 피에조 연결</title>
-  <desc id="desc">MQ-135 VCC는 별도 안정화 5V 양극, GND는 전원 음극과 UNO GND 공통, AO는 A5, DO는 미연결입니다. UNO는 노트북 USB 전원이며 두 전원의 양극은 합치지 않습니다. HC-SR04 5V형의 VCC는 UNO 5V, Trig D9, Echo D11, GND 공통입니다. D8은 330옴 직렬 저항을 거쳐 LED 양극, D6은 작은 수동 피에조 양극입니다. 모든 음극은 GND입니다. 물리적 핀 순서가 아닌 기능별 회로도입니다.</desc>
+  <desc id="desc">MQ-135 VCC는 별도 안정화 5V 양극, GND는 전원 음극과 UNO GND 공통, AO는 A5, DO는 미연결입니다. UNO는 노트북 USB 전원이며 두 전원의 양극은 합치지 않습니다. HC-SR04 5V형의 VCC는 UNO 5V와 직접 연결하며 Trig D7, Echo D11, GND 공통입니다. 초음파 가까이 220µF를 VCC 양극과 GND 음극 사이에 병렬 연결하며 전원선에 직렬로 넣지 않습니다. D8은 330옴 직렬 저항을 거쳐 LED 양극, D6은 작은 수동 피에조 양극입니다. 모든 음극은 GND입니다. 물리적 핀 순서가 아닌 기능별 회로도입니다.</desc>
   <style>text{font-family:Pretendard,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;fill:#203e34;font-size:18px}.small{font-size:14px;fill:#4f625c}.pin{font-size:20px;font-weight:600}.wire{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.box{fill:#fff;stroke:#b8cec6;stroke-width:1.5}.ground{stroke:#42544c}.signal{stroke:#267b64}.power{stroke:#b7473c}</style>
   <rect width="1000" height="1280" fill="#f3f7f7"/>
   <text x="50" y="48" style="font-size:27px;font-weight:700">집온 자동 감지·독립 출력 연결 회로</text>
@@ -23,7 +23,7 @@
   <text x="675" y="324" style="font-size:24px;font-weight:700">Arduino UNO R3</text>
   <text class="small" x="675" y="350">5V · ATmega328P</text>
   <text class="pin" x="665" y="416">GND</text><text class="pin" x="665" y="456">A5</text>
-  <text class="pin" x="665" y="626">5V</text><text class="pin" x="665" y="676">D9 · Trig</text>
+  <text class="pin" x="665" y="626">5V</text><text class="pin" x="665" y="676">D7 · Trig</text>
   <text class="pin" x="665" y="726">D11 · Echo</text><text class="pin" x="665" y="866">D8 · LED</text>
   <text class="pin" x="665" y="1016">D6 · 수동 피에조</text>
   <text class="small" x="675" y="532">외부 전원의 +를</text><text class="small" x="675" y="554">UNO 5V / VIN에 연결하지 않음</text>
@@ -42,6 +42,13 @@
   <path class="wire" stroke="#7388a8" d="M330 670H540Q550 659 560 670H650"/>
   <path class="wire" stroke="#906b9c" d="M330 720H540Q550 709 560 720H650"/>
   <path class="wire ground" d="M330 770H550"/><circle cx="550" cy="770" r="5" fill="#42544c"/>
+  <text class="small" x="50" y="548">초음파 VCC는 UNO 5V에 직결 · 센서 가까이 220µF 병렬</text>
+  <text class="small" x="50" y="567">직렬 금지 · +는 VCC / −는 GND · 극성·정격전압 확인</text>
+  <path class="wire power" d="M385 620V658Q374 670 385 682V690"/>
+  <path class="wire ground" d="M385 702V708Q374 720 385 732V770"/>
+  <path class="wire" stroke="#426657" d="M371 690H399M371 702H399"/>
+  <circle cx="385" cy="620" r="4" fill="#b7473c"/><circle cx="385" cy="770" r="4" fill="#42544c"/>
+  <text class="small" x="364" y="649">+</text><text class="small" x="364" y="755">−</text><text class="small" x="411" y="700">220µF</text>
   <rect class="box" x="50" y="830" width="280" height="105" rx="12"/>
   <text x="70" y="863" font-weight="700">표시 LED</text><text class="pin" x="277" y="866">+</text><text class="pin" x="277" y="916">−</text>
   <path class="wire signal" d="M330 860H405M490 860H540Q550 849 560 860H650"/>
@@ -56,6 +63,6 @@
   <text class="small" x="570" y="1110">●는 접속점 / 둥근 교차선은 미연결</text>
   <rect x="50" y="1140" width="900" height="112" rx="11" fill="#fff0e3"/>
   <text x="70" y="1170" font-size="17">두 전원은 GND만 공통. 켜기: UNO USB → 센서 / 끄기: 센서 → UNO USB</text>
-  <text class="small" x="70" y="1198">전원을 모두 끄고 배선. 기존 먼지 센서·전용 150Ω·220µF 제거. LED 직렬 저항은 필요해요.</text>
+  <text class="small" x="70" y="1198">전원을 모두 끄고 배선. 초음파 220µF는 병렬, LED 330Ω은 직렬. D7 새 코드 업로드 필요.</text>
   <text class="small" x="70" y="1226">실습용 출력 변화 감시이며 농도·안전·화재를 판정하지 않아요. 가스를 방출해 시험하지 마세요.</text>
 </svg>

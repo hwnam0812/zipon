@@ -12,19 +12,26 @@ root = Path('.')
 out = root / '.baze-files/outputs'
 out.mkdir(parents=True, exist_ok=True)
 kit = ['hardware/zipon_uno_v4/zipon_uno_v4.ino', 'hardware/zipon-v4-wiring.svg', 'hardware/V4-USB-설치안내.md']
+sketch = Path(kit[0]).read_text()
+for mapping in ['LED_PIN=7', 'BUZZER_PIN=6', 'TRIG_PIN=9', 'ECHO_PIN=8', 'ECHO_PORT_BIT=PB0', 'ECHO_INTERRUPT_BIT=PCINT0']:
+    assert mapping in sketch, 'V4 confirmed wiring mismatch: ' + mapping
 with ZipFile(out / 'zipon-usb-v4-kit.zip', 'w', ZIP_DEFLATED, strict_timestamps=False) as z:
     for name in kit:
         z.write(name, 'zipon-usb-v4/' + str(Path(name).relative_to('hardware')))
 for name in kit:
     shutil.copyfile(name, out / Path(name).name)
+with ZipFile(out / 'zipon-usb-v4-kit.zip') as z:
+    for name in kit:
+        assert z.read('zipon-usb-v4/' + str(Path(name).relative_to('hardware'))) == Path(name).read_bytes()
+        assert (out / Path(name).name).read_bytes() == Path(name).read_bytes()
 shutil.copyfile('STREAMLIT-배포안내.md', out / 'STREAMLIT-배포안내.md')
 files = set()
 top = ['README.md', 'DESIGN.md', 'streamlit_app.py', 'pyproject.toml', 'uv.lock', 'requirements.txt', 'STREAMLIT-배포안내.md', '.streamlit/config.toml', '.gitignore', 'package.json', 'package-lock.json', 'index.html', 'vite.config.ts', 'schema.sql', 'wrangler.jsonc', 'baze.json', 'AGENTS.md']
 for name in top:
     if Path(name).is_file(): files.add(Path(name))
 for name in root.glob('tsconfig*.json'): files.add(name)
-allowed = {'.py', '.mjs', '.js', '.css', '.ts', '.tsx', '.ino', '.svg', '.md', '.h', '.cpp', '.json', '.txt', '.png', '.jpg', '.ico'}
-for folder in ['zipon_streamlit', 'streamlit_ui', 'hardware', 'src', 'worker', 'scripts', 'test', 'public']:
+allowed = {'.py', '.mjs', '.js', '.css', '.ts', '.tsx', '.ino', '.svg', '.md', '.h', '.cpp', '.json', '.txt', '.png', '.jpg', '.ico', '.sql'}
+for folder in ['zipon_streamlit', 'streamlit_ui', 'hardware', 'src', 'worker', 'scripts', 'test', 'public', 'supabase/migrations']:
     for p in (root / folder).rglob('*'):
         if not p.is_file() or p.suffix not in allowed: continue
         if any(part in {'__pycache__', 'node_modules', '.venv', '.git', 'dist', 'outputs', 'uploads', 'downloads'} for part in p.parts): continue

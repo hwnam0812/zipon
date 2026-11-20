@@ -3,7 +3,8 @@ import App from "./App";
 import Admin from "./pages/Admin";
 import Home from "./pages/Home";
 import History from "./pages/History";
-import Settings from "./pages/Settings";
+import Settings, { QuietTime } from "./pages/Settings";
+import { GasStatus, DoorStatus } from "./pages/SensorStatus";
 import Devices from "./pages/Devices";
 import Monitor from "./pages/Monitor";
 import { Navigate } from "react-router";
@@ -21,6 +22,9 @@ export const routes: RouteObject[] = [
       { index: true, element: <Home /> },
       { path: "/history", element: <History /> },
       { path: "/settings", element: <Settings /> },
+      { path: "/quiet-time", element: <QuietTime /> },
+      { path: "/gas-status", element: <GasStatus /> },
+      { path: "/door-status", element: <DoorStatus /> },
       { path: "/devices", element: <Devices /> },
       { path: "/monitor", element: <Monitor /> },
       { path: "*", element: <Navigate to="/" replace /> },

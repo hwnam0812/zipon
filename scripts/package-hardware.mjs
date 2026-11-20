@@ -20,4 +20,6 @@ copyFileSync("hardware/zipon-mq135-wiring.svg", "public/downloads/zipon-mq135-wi
 copyFileSync("hardware/zipon-mq135-wiring.svg", ".baze-files/outputs/zipon-mq135-wiring.svg");
 copyFileSync("hardware/zipon_uno/zipon_uno.ino", ".baze-files/outputs/zipon_uno.ino");
 copyFileSync("hardware/MQ135-설치안내.md", ".baze-files/outputs/MQ135-설치안내.md");
+copyFileSync("hardware/ultrasonic_photo_check/ultrasonic_photo_check.ino", ".baze-files/outputs/ultrasonic_photo_check.ino");
+copyFileSync("hardware/사진배선-초음파검사.md", ".baze-files/outputs/사진배선-초음파검사.md");
 console.log("USB 코드와 설치 안내 묶음을 만들었어요.");

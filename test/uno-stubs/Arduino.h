@@ -10,7 +10,7 @@ constexpr int HIGH=1, LOW=0, OUTPUT=1, INPUT=0, DEFAULT=0, A5=19;
 inline uint32_t fakeNow=0;
 inline int fakeAdc=100, pins[32]={0};
 inline uint8_t PINB=0, PCICR=0, PCMSK0=0;
-constexpr int PB3=3, PCIE0=0, PCINT3=3;
+constexpr int PB0=0, PB3=3, PCIE0=0, PCINT0=0, PCINT3=3;
 #define _BV(n) (1U << (n))
 inline uint32_t millis() { return fakeNow; }
 inline uint32_t micros() { return fakeNow * 1000U; }

@@ -4,27 +4,26 @@ from copy import deepcopy
 import time
 
 from .service import FamilyService
-from .storage import SessionStore, SqlStore
+from .storage import SqlStore
+from .supabase_store import SupabaseStore, SUPABASE_URL
 from .models import utc_now
 
 _IO = ThreadPoolExecutor(max_workers=4, thread_name_prefix="zipon-storage")
 STORAGE_ERROR = "저장 연결을 확인하지 못했어요. 마지막으로 읽은 내용을 표시하고 있어요. 새 기록의 저장 완료를 뜻하지 않아요."
-TEMPORARY_WARNING = "영구 저장소에 연결하지 못했어요. 이번 접속은 임시 기록만 사용해요. Streamlit Secrets의 DATABASE_URL을 확인한 뒤 다시 열어 주세요."
 
 
-def open_service(url, path, owner):
-    warning = ""
-    if url or path:
-        store = None
-        try:
-            store = SqlStore(url=url or None, sqlite_path=path or None)
-            service = FamilyService(store, owner)
-            return service, service.snapshot(), warning
-        except Exception:
-            if store is not None: store.close()
-            warning = TEMPORARY_WARNING
-    service = FamilyService(SessionStore(), owner)
-    return service, service.snapshot(), warning
+def open_service(url, path, owner, *, supabase_key="", supabase_url=SUPABASE_URL):
+    store = None
+    try:
+        if supabase_key: store = SupabaseStore(supabase_url, supabase_key)
+        elif url or path: store = SqlStore(url=url or None, sqlite_path=path or None)
+        else: raise RuntimeError("storage not configured")
+        service = FamilyService(store, owner)
+        return service, service.snapshot(), ""
+    except Exception:
+        if store is not None: store.close()
+        # Never silently fall back to session memory after a durable failure.
+        raise RuntimeError("가족 공간의 보관 연결을 확인하지 못했어요. 저장이나 제어를 시작하지 않았어요.") from None
 
 
 class ScreenSession:
@@ -58,18 +57,23 @@ class ScreenSession:
         if self.future is not None and self.future.done():
             try:
                 value = self.future.result()
-                if self.kind == "open": self.service, self.data, self.warning = value
-                elif self.kind == "snapshot": self.data = value
+                if self.kind == "open":
+                    self.service, self.data, self.warning = value
+                    self.error = ""
+                elif self.kind == "snapshot":
+                    self.data = value
+                    self.error = ""
                 else:
                     self.reply = value
                     if value.get("ok"):
                         op, result = self.active_request.get("op"), value.get("result", {})
-                        if op == "refresh": self.data = result
+                        if op == "refresh":
+                            self.data = result
+                            self.error = ""
                         elif op == "settings": self.data.update(settings=result["settings"], settingsRevision=result["settingsRevision"])
                         if op not in ("download", "inspect_import", "logout", "release"):
                             self.data["serverTime"] = utc_now()
                         if op in ("settings", "import"): self.next_refresh = 0
-                self.error = ""
             except Exception:
                 # Never expose or log driver exceptions, even when parsing a bad URI.
                 self.error = STORAGE_ERROR
