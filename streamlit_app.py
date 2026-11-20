@@ -90,7 +90,8 @@ if not authenticated:
 
 if "zipon_screen" not in st.session_state:
     url, path, owner = setting("DATABASE_URL"), os.environ.get("ZIPON_DEV_DB", ""), st.session_state.zipon_session_id
-    st.session_state.zipon_screen = ScreenSession(lambda: open_service(url, path, owner))
+    supabase_key = setting("SUPABASE_SERVICE_ROLE_KEY")
+    st.session_state.zipon_screen = ScreenSession(lambda: open_service(url, path, owner, supabase_key=supabase_key))
 screen = st.session_state.zipon_screen
 digest = hashlib.sha256(b"".join(p.read_bytes() for p in sorted((ROOT / "streamlit_ui").glob("*.mjs"))) + (ROOT / "streamlit_ui/style.css").read_bytes()).hexdigest()
 monitor = register_component(digest)
@@ -108,7 +109,12 @@ def family_screen():
     notice = st.empty()
     data = screen.poll()
     if data is None:
-        if screen.error: notice.error("설정과 기록을 불러오지 못했어요. 연결 설정을 확인한 뒤 화면을 다시 열어 주세요.")
+        if screen.error:
+            notice.error("가족 공간의 보관 연결을 확인하지 못했어요. 저장이나 제어를 시작하지 않았어요. 보관 연결 정보를 확인한 뒤 다시 시도해 주세요.")
+            if st.button("보관 연결 다시 시도", key="zipon_storage_retry"):
+                screen.close()
+                st.session_state.pop("zipon_screen", None)
+                st.rerun()
         else: notice.info("집온 · 저장된 설정과 기록을 불러오고 있어요. 연결이 느려도 화면을 닫을 필요는 없어요.")
         return
     if screen.reply and screen.reply.get("ok") and screen.reply.get("result", {}).get("logout"):
@@ -117,7 +123,7 @@ def family_screen():
             st.session_state.pop(key, None)
         st.rerun()
     page = st.query_params.get("page", "home")
-    data["initialPage"] = page if page in ("home", "monitor", "history", "settings", "devices") else "home"
+    data["initialPage"] = page if page in ("home", "monitor", "history", "settings", "devices", "quiet-time", "gas-status", "door-status") else "home"
     result = monitor(data=data, key="zipon_family_monitor", on_request_change=lambda: None, width="stretch")
     request = result.request
     screen.enqueue(request)

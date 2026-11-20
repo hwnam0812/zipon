@@ -7,6 +7,7 @@ import time
 
 os.environ["ADMIN_TOKEN"] = os.environ["ZIPON_BROWSER_TEST_PASSWORD"]
 os.environ["DATABASE_URL"] = ""
+os.environ["SUPABASE_SERVICE_ROLE_KEY"] = ""
 os.environ["ZIPON_DEV_DB"] = os.environ["ZIPON_BROWSER_TEST_DB"]
 root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root))

@@ -13,7 +13,7 @@ DEFAULT_SETTINGS = {
     "homeName": "우리 집", "quietEnabled": True,
     "quietWindows": [{"id": "night", "name": "밤 시간", "enabled": True, "start": "22:00", "end": "07:00", "days": list(range(7))}],
     "gas": {"warmupConfirmed": False, "baseline": None, "threshold": None, "recovery": None, "holdSeconds": 10, "recoverySeconds": 10},
-    "intrusion": {"enabled": False, "baselineCm": 12, "deltaCm": 8, "holdSeconds": 2, "recoverySeconds": 2, "cooldownSeconds": 30, "allowedWindows": []},
+    "intrusion": {"enabled": False, "baselineCm": 12, "baselineConfirmed": False, "deltaCm": 8, "holdSeconds": 2, "recoverySeconds": 2, "cooldownSeconds": 30, "allowedWindows": []},
 }
 EVENT_KINDS = set("usb_connected usb_disconnected device_boot gas_alert gas_clear intrusion_alert intrusion_clear intrusion_stopped door_open door_closed led_on led_off buzzer_on buzzer_off sensor_error sensor_recovered command_requested command_applied command_rejected command_expired settings_saved quiet_door monitoring_started".split())
 LEGACY_KINDS = set("fire_risk fire_clear gas_below siren_requested siren_started siren_stopped output_requested output_applied output_rejected sensor_settings".split())
@@ -68,12 +68,14 @@ def validate_settings(value):
         raise ValidationError("가스 기준값 ≤ 복귀 기준 < 경보 기준이 되도록 입력해 주세요.")
     if not isinstance(i, dict) or type(i.get("enabled")) is not bool:
         raise ValidationError("출입 감시 사용 여부를 선택해 주세요.")
+    if type(i.get("baselineConfirmed", False)) is not bool:
+        raise ValidationError("닫힘 기준을 직접 확인했는지 선택해 주세요.")
     for key, lo, hi, whole in [("baselineCm", 2, 390, False), ("deltaCm", 2, 100, False), ("holdSeconds", 1, 30, True), ("recoverySeconds", 1, 30, True), ("cooldownSeconds", 5, 600, True)]:
         if not numeric(i.get(key), lo, hi, whole):
             raise ValidationError("거리 기준·변화량·지속 시간·반복 방지 시간을 확인해 주세요.")
     return {"homeName": value["homeName"].strip(), "quietEnabled": value["quietEnabled"], "quietWindows": validate_windows(value.get("quietWindows")),
             "gas": {k: g.get(k) for k in DEFAULT_SETTINGS["gas"]},
-            "intrusion": {**{k: i[k] for k in DEFAULT_SETTINGS["intrusion"] if k != "allowedWindows"}, "allowedWindows": validate_windows(i.get("allowedWindows"))}}
+            "intrusion": {**{k: i[k] for k in DEFAULT_SETTINGS["intrusion"] if k not in ("allowedWindows", "baselineConfirmed")}, "baselineConfirmed": i.get("baselineConfirmed", False), "allowedWindows": validate_windows(i.get("allowedWindows"))}}
 
 
 def validate_sample(p):

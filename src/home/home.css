@@ -1,4 +1,10 @@
 .zipon-app { --green: #28785c; --green-dark: #285d47; --muted: #60715e; --line: #e5eae6; --coral: #b25b45; min-height: 100dvh; padding-left: 228px; font-size: 14px; color: #263e35; }
+.home-connection-strip { display:flex; align-items:center; gap:15px; padding:18px 22px; margin-bottom:20px; border:1px solid #d9e5de; border-radius:13px; background:#fff; }
+.home-connection-strip>svg { flex-shrink:0; color:#28785c; }
+.home-connection-strip>div { flex:1; }
+.home-connection-strip b { font-size:14px; }
+.home-connection-strip p { margin:4px 0 0; max-width:52ch; color:#53685c; font-size:12px; line-height:1.8; }
+@media(max-width:700px) { .home-connection-strip { flex-wrap:wrap; padding:17px; gap:12px; }.home-connection-strip>div { flex-basis:calc(100% - 38px); }.home-connection-strip>a { width:100%; } }
 .zipon-app button, .zipon-app a, .zipon-app input, .zipon-app select { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 .zipon-app button { cursor: pointer; }
 .zipon-app button:disabled { cursor: not-allowed; opacity: .52; }
@@ -58,7 +64,7 @@
 .brand-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 13px; background: #28785c; color: #fff; }
 .brand-latin { margin: 6px 0 0 1px; color: #6e7f75; font-size: 12px; font-weight: 400; letter-spacing: -.1px; }
 .brand-tagline { margin: 12px 0 42px; padding-left: 12px; color: #75847b; font-size: 12px; }
-.main-nav { display: grid; gap: 7px; }
+.main-nav { display: grid; gap: 7px; margin-top: 34px; }
 .nav-item { display: flex; align-items: center; gap: 13px; min-height: 52px; padding: 0 16px; border-radius: 12px; color: #718076; font-weight: 500; transition: background .15s, color .15s; }
 .nav-item:hover { background: #f6f8f6; color: #315e43; }
 .nav-item.is-active { background: #eaf4ee; color: #286a4e; }
@@ -481,7 +487,7 @@
   .topbar-avatar, .topbar-divider { display: none; }
   .breadcrumbs { display: none; }
   .mobile-brand { display: flex; align-items: center; gap: 8px; color: #2d674d; font-size: 22px; font-weight: 750; letter-spacing: -1px; }
-  .mobile-nav { position: fixed; z-index: 30; inset: auto 0 0; display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); padding: 8px 6px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid #e0e8da; background: #fffffff5; backdrop-filter: blur(12px); }
+  .mobile-nav { position: fixed; z-index: 30; inset: auto 0 0; display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); padding: 8px 6px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid #e0e8da; background: #fffffff5; backdrop-filter: blur(12px); }
   .mobile-nav a { display: grid; justify-items: center; align-content: center; gap: 4px; min-height: 49px; border-radius: 10px; color: #7d8d74; font-size: 10px; }
   .mobile-nav a.is-active { color: #3b7650; background: #edf5e9; font-weight: 600; }
   .app-main { padding: 29px 26px 22px; }
@@ -648,6 +654,82 @@
   .zipon-app *, .zipon-app *::before, .zipon-app *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
 .output-control { padding: 23px; display: flex; flex-direction: column; min-width: 0; }
+.quick-output-actions { display: grid; gap: 10px; margin: 15px 0; }
+.quick-output-button { display: flex; align-items: center; gap: 14px; min-height: 76px; padding: 15px 17px; border: 1px solid #d6e6dc; border-radius: 12px; background: #edf5ef; color: #285d47; text-align: left; }
+.quick-output-button > svg { flex-shrink: 0; }
+.quick-output-button b { display: block; font-size: 16px; font-weight: 650; }
+.quick-output-button small { display: block; margin-top: 3px; color: #52685b; font-size: 11px; }
+.quick-output-button--sound { background: #f0f3f7; border-color: #dce3ec; color: #405d7a; }
+.quick-output-button:not(:disabled):hover { border-color: currentColor; }
+.quick-output-report { display: grid; gap: 4px; padding: 11px 0; border-block: 1px solid #e8eeea; font-size: 11px; color: var(--muted); }
+.quick-output-report b { color: #365547; font-size: 12px; font-weight: 600; }
+.output-advanced > summary { min-height: 44px; padding-block: 13px; cursor: pointer; font-size: 12px; color: #45634f; }
+.output-advanced .output-mute { width: 100%; }
+.dashboard-top--controls { grid-template-columns: minmax(0, 1fr) 340px; }
+.dashboard-top.dashboard-top--controls { align-items: stretch; }
+.dashboard-top--controls .home-hero { min-height: 340px; }
+.sensor-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.status-card { display: block; padding: 23px 25px 0; color: inherit; transition: border-color .15s; }
+.status-card:hover { border-color: #8aa895; }
+.status-card-heading { display: flex; align-items: center; gap: 11px; }
+.status-card-heading h2 { flex: 1; margin: 0; font-size: 15px; font-weight: 650; }
+.status-card-heading > svg { color: #55745e; }
+.status-card-result { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 22px; }
+.status-card-result > span:first-child { flex-basis: 100%; color: var(--muted); font-size: 12px; }
+.status-card-result > strong { margin-right: auto; color: #294c3d; font-size: 28px; letter-spacing: -.02em; }
+.status-card-reading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 17px; color: var(--muted); font-size: 12px; }
+.status-card-reading .sensor-number { color: #405d50; font-size: 25px; font-weight: 600; }
+.sensor-number small { margin-left: 6px; font-size: 11px; font-weight: 400; letter-spacing: normal; }
+.status-card > p { min-height: 38px; margin: 11px 0 17px; color: #5e7065; font-size: 11px; line-height: 1.8; }
+.status-card-link { display: flex; align-items: center; justify-content: space-between; min-height: 46px; border-top: 1px solid #e8eeea; color: #496e59; font-size: 12px; }
+.back-home { margin-bottom: 14px; min-height: 44px; }
+.status-detail-layout { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.status-detail-primary { padding: 35px; }
+.status-kicker { margin: 24px 0 5px; color: #556c60; font-size: 13px; }
+.status-detail-primary h2 { margin: 0; color: #2c4b3c; font-size: clamp(30px, 4vw, 46px); letter-spacing: -.025em; line-height: 1.4; }
+.status-explanation { max-width: 42ch; margin: 18px 0 0; color: #536c5c; line-height: 1.85; font-size: 13px; }
+.unapplied-threshold { display: flex; flex-wrap: wrap; gap: 11px; align-items: center; margin-top: 32px; padding-top: 23px; border-top: 1px solid #e1e9e3; }
+.unapplied-threshold > span:first-child { flex-basis: 100%; font-size: 12px; color: var(--muted); }
+.unapplied-threshold b { margin-right: auto; font-size: 27px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.unapplied-threshold small { font-size: 12px; font-weight: 400; }
+.unapplied-threshold p { margin: 0; font-size: 12px; line-height: 1.85; color: #5a7062; }
+.status-detail-secondary { display: grid; gap: 21px; min-width: 0; }
+.measurement-panel { padding: 25px; margin-bottom: 20px; }
+.status-detail-secondary .measurement-panel { margin-bottom: 0; }
+.measurement-panel h2 { margin: 0; font-size: 16px; }
+.measurement-number { margin: 20px 0 12px; color: #345341; font-size: 48px; line-height: 1.3; font-weight: 600; font-variant-numeric: tabular-nums; }
+.measurement-number span { margin-left: 8px; font-size: 13px; font-weight: 400; color: var(--muted); }
+.measurement-panel progress { display: block; width: 100%; height: 8px; border: 0; border-radius: 5px; overflow: hidden; accent-color: #5f8972; }
+.measurement-panel progress::-webkit-progress-bar { background: #edf2ee; }
+.measurement-panel progress::-webkit-progress-value { background: #5f8972; }
+.measurement-scale { display: flex; justify-content: space-between; gap: 10px; margin-top: 8px; color: var(--muted); font-size: 11px; }
+.measurement-facts { margin: 20px 0 0; }
+.measurement-facts > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 9px; padding: 12px 0; border-top: 1px solid #e7eee8; font-size: 12px; }
+.measurement-facts dt { color: var(--muted); }
+.measurement-facts dd { margin: 0; text-align: right; }
+.status-help { display: flex; align-items: flex-start; gap: 12px; padding: 5px; }
+.status-help > svg { flex-shrink: 0; margin-top: 3px; color: #5f7c6a; }
+.status-help h2 { margin: 0; font-size: 13px; }
+.status-help p { margin: 8px 0; font-size: 12px; line-height: 1.85; color: var(--muted); }
+.distance-ruler { display: flex; justify-content: space-between; gap: 6px; position: relative; margin-top: 35px; padding-top: 25px; color: #58715f; font-size: 11px; }
+.distance-ruler::before { content: ""; position: absolute; top: 0; inset-inline: 0; height: 11px; border: 1px solid #ceded3; background: #e6f0e9; border-radius: 3px; }
+.distance-ruler-center::before { content: ""; position: absolute; top: -5px; left: 50%; height: 21px; border-left: 2px solid #5e806a; }
+.status-caption { margin: 25px 0 0; color: var(--muted); font-size: 11px; line-height: 1.85; }
+.door-comparison--outside { border-color: #dfc5a4; }
+.door-comparison--outside h2 { color: #8b5f29; }
+.distance-readings { margin: 13px 0 17px; }
+.distance-readings > div { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 16px 0; border-bottom: 1px solid #e8eee9; }
+.distance-readings dt { font-size: 12px; color: var(--muted); }
+.distance-readings dd { margin: 0; font-size: 27px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.distance-readings small { margin-left: 6px; font-size: 12px; font-weight: 400; color: var(--muted); }
+.settings-shortcuts { display: flex; flex-wrap: wrap; gap: 13px; align-items: center; margin: 0 0 22px; }
+.settings-shortcuts + .sensor-settings { margin-bottom: 24px; }
+.live-measurements { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.live-measurements .measurement-panel { margin-bottom: 0; }
+.live-measurement-time { margin: 14px 0 24px; color: var(--muted); font-size: 12px; }
+@media (max-width: 1150px) { .dashboard-top--controls { grid-template-columns: minmax(0,1fr) 300px; } .status-detail-layout { grid-template-columns: minmax(0,1fr); } }
+@media (max-width: 700px) { .dashboard-top--controls { grid-template-columns: minmax(0,1fr); } .dashboard-top--controls .home-hero { min-height: 255px; } .quick-output-actions { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; } .quick-output-button { padding: 15px 12px; gap: 10px; align-items: flex-start; } .quick-output-button b { font-size: 15px; } .quick-output-button small { font-size: 10px; } .status-detail-primary { padding: 26px; } .measurement-panel { padding: 23px; } .sensor-overview { grid-template-columns: minmax(0,1fr); gap: 16px; } .status-card { padding-inline: 23px; } .status-card > p { min-height: 0; } .status-card-result { margin-top: 17px; } }
+@media (max-width: 380px) { .quick-output-button { flex-direction: column; min-height: 115px; } .quick-output-button > svg { width: 22px; } .status-detail-primary,.measurement-panel { padding: 21px; } .live-measurements { grid-template-columns: minmax(0,1fr); gap: 15px; } }
 .dashboard-top { align-items: start; }
 .home-overview { min-width: 0; }
 .home-overview .sensor-heading { flex-wrap: wrap; row-gap: 10px; }
@@ -699,3 +781,25 @@
   .output-button { font-size: 12px; }
   .filter-bar .segment-control { flex-wrap: wrap; }
 }
+.quick-output-stop { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:9px; }
+.quick-output-stop .secondary-button { padding:8px;font-size:11px;min-height:44px;justify-content:center; }
+.home-status-line { display:flex;align-items:center;justify-content:space-between;gap:15px;margin:0 0 20px;color:#52695d;font-size:12px; }
+.home-status-line>div { display:flex;align-items:center;gap:10px;flex-wrap:wrap; }
+.home-status-line b { font-weight:600; }.home-status-line svg { flex-shrink:0; }
+.home-main-grid { display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:20px;margin-bottom:24px;align-items:start; }
+.home-main-grid .sensor-grid { margin-top:0; }
+.settings-content { max-width:850px; }.settings-content>.settings-shortcuts { margin-top:20px; }
+.settings-tabs { display:flex;flex-wrap:wrap;gap:7px;border-bottom:1px solid #dce6df;padding-bottom:12px;margin-bottom:23px; }
+.settings-tabs a { display:flex;align-items:center;justify-content:center;min-height:44px;padding:9px 15px;border-radius:8px;color:#536b5d;font-size:13px; }
+.settings-tabs a[aria-current] { background:#e7f1eb;color:#286a4e;font-weight:650; }
+.settings-help { margin-top:20px; }.settings-help>summary,.legacy-connection>summary,.usb-guide>summary { cursor:pointer;min-height:44px;padding-block:11px;color:#42654f;font-size:13px;font-weight:600; }
+.settings-help[open]>summary { margin-bottom:12px; }.settings-help .advanced-fields>label:first-child { grid-column:auto; }
+.settings-step-hint { color:#52695d;font-size:13px;margin:0 0 17px; }
+.sensor-settings .field-label { margin-top:18px; }.sensor-settings .settings-savebar { margin-top:28px;padding-top:20px;border-top:1px solid #e5ece7; }
+.settings-savebar { flex-wrap:wrap;gap:10px; }.settings-savebar>.saved-mark { margin-right:auto; }
+.legacy-connection>summary { display:list-item;margin-bottom:18px; }.legacy-connection>summary span { font-size:11px;font-weight:400;margin-left:10px;color:#607364; }
+.legacy-connection .device-main { display:grid;align-content:start;gap:21px; }.legacy-connection .usb-guide { margin-top:0; }
+.safety-note details { margin-top:4px; }.safety-note summary { cursor:pointer;min-height:32px;padding-block:5px; }.safety-note details p { max-width:60ch; }
+.home-alarm { padding:14px;border:1px solid #e5b9ad;border-radius:9px;background:#fff0eb; }
+@media(max-width:1150px) { .home-main-grid { grid-template-columns:minmax(0,1fr); }.home-main-grid .quick-output-actions { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:760px) { .home-main-grid { grid-template-columns:minmax(0,1fr);gap:18px; }.home-status-line { align-items:flex-start; }.home-status-line>div { gap:6px 9px; }.home-status-line>div>span { flex-basis:100%; }.settings-tabs a { flex:1;padding-inline:8px;font-size:12px; }.settings-savebar>.saved-mark { width:100%; }.settings-savebar>button { flex:1; }.settings-content .sensor-settings { padding:22px; } }

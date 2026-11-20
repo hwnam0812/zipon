@@ -1,5 +1,6 @@
 // Zipon practice monitor, NOT a certified gas/fire/safety alarm.
-// UNO R3 only. LED D8, small PASSIVE piezo D6, Trig D9, Echo D11, MQ135 AO A5.
+// UNO R3 only. LED D8, small PASSIVE piezo D6, Trig D7, Echo D11, MQ135 AO A5.
+// HC-SR04 VCC -> UNO 5V directly; GND -> UNO GND. No external capacitor used.
 // No password/key in this sketch. Local settings are RAM-only; gas starts OFF.
 #include <Arduino.h>
 #include <avr/interrupt.h>
@@ -10,7 +11,7 @@
 #error "Select Arduino Uno (ATmega328P)."
 #endif
 
-const uint8_t LED_PIN = 8, BUZZER_PIN = 6, TRIG_PIN = 9, ECHO_PIN = 11;
+const uint8_t LED_PIN = 8, BUZZER_PIN = 6, TRIG_PIN = 7, ECHO_PIN = 11;
 struct Config {
   uint16_t closedMm, toleranceMm, doorHoldMs;
   bool doorCalibrated, doorSignals, gasEnabled;

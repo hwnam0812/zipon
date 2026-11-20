@@ -60,6 +60,18 @@ class ScreenTests(unittest.TestCase):
         self.assertEqual(self.screen.reply["id"], request["id"])
         self.assertIsNone(self.screen.queued)
 
+    def test_unrelated_or_failed_request_does_not_clear_storage_failure(self):
+        self.screen.error = "저장 연결 실패"
+        for number, response in enumerate(({"ok": True, "result": {}}, {"ok": False, "error": "잘못된 입력"})):
+            request = {"id": f"isolated-failure-{number}", "op": "inspect_import", "payload": {}}
+            self.screen.enqueue(request)
+            with patch.object(self.service, "handle", return_value={"id": request["id"], **response}):
+                self.screen.poll(); self.screen.future.result(timeout=2)
+                self.assertEqual(self.screen.poll()["storageError"], "저장 연결 실패")
+        self.now = 4
+        self.screen.poll(); self.screen.future.result(timeout=2)
+        self.assertEqual(self.screen.poll()["storageError"], "")
+
     def test_queue_delay_is_included_in_sample_age(self):
         request = {"id": "isolated-age", "op": "sync", "payload": {"sample": {"test": True}, "sampleAgeMs": 200}}
         self.screen.enqueue(request); self.now = 2
@@ -68,12 +80,21 @@ class ScreenTests(unittest.TestCase):
             self.assertEqual(handle.call_args.args[0]["payload"]["sampleAgeMs"], 2200)
         self.assertEqual(request["payload"]["sampleAgeMs"], 200)
 
-    def test_failed_initial_connection_is_explicitly_temporary(self):
+    def test_failed_initial_connection_never_falls_back_to_memory(self):
         with patch("zipon_streamlit.screen.SqlStore", side_effect=RuntimeError("private-url")):
-            service, data, warning = open_service("isolated-invalid", "", "owner")
-        self.assertFalse(data["durable"])
-        self.assertIn("임시", warning)
-        self.assertNotIn("private-url", warning)
+            with self.assertRaises(RuntimeError) as error:
+                open_service("isolated-invalid", "", "owner")
+        self.assertIn("제어를 시작하지", str(error.exception))
+        self.assertNotIn("private-url", str(error.exception))
+
+    def test_missing_connection_never_opens_family_controls(self):
+        with self.assertRaises(RuntimeError): open_service("", "", "owner")
+
+    def test_supabase_connection_is_selected_without_bad_database_url(self):
+        with patch("zipon_streamlit.screen.SupabaseStore", return_value=self.service.store) as store:
+            service, data, warning = open_service("isolated-invalid", "", "owner", supabase_key="isolated-key")
+        store.assert_called_once()
+        self.assertEqual(warning, "")
 
 
 class PostgresConnectionTests(unittest.TestCase):

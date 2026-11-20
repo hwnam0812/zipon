@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useBlocker } from "react-router";
 import { Check, CheckCheck, Clock3, DoorClosed, DoorOpen, Flame, Lightbulb, LoaderCircle, ShieldCheck, Siren, Wind, X, type LucideIcon } from "lucide-react";
 import { kstClock, type HomeEvent } from "../lib/home-model";
 
@@ -11,8 +12,8 @@ export function IconBadge({ icon: Icon, tone = "green" }: { icon: LucideIcon; to
 export function Toggle({ checked, onChange, label, disabled = false }: { checked: boolean; onChange: () => void; label: string; disabled?: boolean }) {
   return <button type="button" className="switch" role="switch" aria-checked={checked} aria-label={label} onClick={onChange} disabled={disabled}><span>{checked && <Check size={10}/>}</span></button>;
 }
-export function PageHeading({ title, description, aside }: { title: string; description: string; aside?: ReactNode }) {
-  return <div className="page-heading"><div><p className="page-eyebrow">소중한 일상이 머무는 곳</p><h1>{title}</h1><p className="page-description">{description}</p></div>{aside}</div>;
+export function PageHeading({ title, description, aside }: { title: string; description?: string; aside?: ReactNode }) {
+  return <div className="page-heading"><div><h1>{title}</h1>{description && <p className="page-description">{description}</p>}</div>{aside}</div>;
 }
 export function Modal({ open, onClose, title, children, className = "" }: { open: boolean; onClose: () => void; title: string; children: ReactNode; className?: string }) {
   const ref = useRef<HTMLDialogElement>(null), id = useId();
@@ -39,7 +40,7 @@ export function EventList({ events, variant = "history" }: { events: HomeEvent[]
   })}</ol>;
 }
 export function SafetyNote() {
-  return <footer className="safety-note"><ShieldCheck size={14} aria-hidden="true"/><p>집온은 보조 모니터링 도구예요. MQ-135 출력으로 가스 누출·화재·안전을 판단하지 않아요.<br className="mobile-break"/> 인증된 독립 경보기를 사용하고 가족과 반려견의 안전을 직접 확인해 주세요.</p></footer>;
+  return <footer className="safety-note"><ShieldCheck size={14} aria-hidden="true"/><div><p>실습용 · 화재·누출·안전 판단 불가</p><details><summary>사용 시 주의</summary><p>인증된 독립 경보기를 대체하지 않아요. 실제 상황과 빛·소리는 현장에서 확인해 주세요. 앱을 닫거나 기기가 절전 중이면 알림과 기록이 빠질 수 있어요.</p></details></div></footer>;
 }
 export function SavedMark() { return <span className="saved-mark"><CheckCheck size={15}/>저장한 설정은 다시 열어도 유지돼요</span>; }
 export function UnavailableFeature({ title, children }: { title: string; children: ReactNode }) {
@@ -53,4 +54,13 @@ export function useUnsavedChanges(dirty: boolean) {
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
+}
+
+export function UnsavedChangesDialog({ dirty }: { dirty: boolean }) {
+  useUnsavedChanges(dirty);
+  const blocker = useBlocker(dirty);
+  return <Modal open={blocker.state === "blocked"} onClose={() => blocker.state === "blocked" && blocker.reset()} title="수정한 내용을 버릴까요?">
+    <p className="confirm-copy">저장한 내용은 그대로 남아요.</p>
+    <div className="modal-actions"><button type="button" className="secondary-button" onClick={() => blocker.state === "blocked" && blocker.reset()}>계속 수정</button><button type="button" className="primary-button" onClick={() => blocker.state === "blocked" && blocker.proceed()}>수정 버리고 이동</button></div>
+  </Modal>;
 }

@@ -16,5 +16,6 @@ __pycache__/
 *.db-wal
 *.sqlite*
 .uv-cache/
+supabase/.temp/
 .baze-files/uploads/
 .baze-files/outputs/

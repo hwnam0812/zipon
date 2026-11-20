@@ -1,17 +1,21 @@
-import { Cable, ExternalLink, Info, Usb } from "lucide-react";
-import { PageHeading, SafetyNote } from "../home/ui";
+import { Link } from "react-router";
+import { ExternalLink } from "lucide-react";
+import { useHome } from "../home/HomeProvider";
+import { LoadingState, PageHeading, Pill, SafetyNote } from "../home/ui";
+import { kstClock } from "../lib/home-model";
 
 export default function Monitor() {
+  const { state } = useHome(), s = state.snapshot;
+  if (!s) return <LoadingState/>;
+  const fresh = s.online && !state.error;
   return <>
-    <PageHeading title="실시간 모니터링" description="USB로 연결한 UNO의 센서값과 출력 상태를 확인해요."/>
-    <section className="sensor-card" style={{ padding: 28, maxWidth: 780 }}>
-      <Usb size={30} color="#527b4c"/>
-      <h2 style={{ fontSize: 21, margin: "18px 0 10px" }}>Streamlit 모니터링 화면</h2>
-      <p style={{ lineHeight: 1.8, color: "#53675c", wordBreak: "keep-all" }}>기존 가족 공간은 그대로 두고, 새 USB 연결·그래프·감시 설정은 Streamlit 화면에서 사용해요. 같은 가족 비밀번호로 들어갈 수 있어요.</p>
-      <a href="/streamlit/?page=monitor" className="button button--primary" style={{ display: "inline-flex", marginTop: 18, alignItems: "center", gap: 8 }}><ExternalLink size={17}/>모니터링 화면 열기</a>
-      <p style={{ display: "flex", gap: 8, fontSize: 13, marginTop: 24, lineHeight: 1.8 }}><Cable size={18} style={{ flexShrink: 0, marginTop: 3 }}/>새 V4 스케치 · 9600 baud · MQ-135 A5 · Trig D9 · Echo D11</p>
-      <p style={{ display: "flex", gap: 8, fontSize: 13, lineHeight: 1.8 }}><Info size={18} style={{ flexShrink: 0, marginTop: 3 }}/>USB는 UNO가 꽂힌 컴퓨터의 지원 브라우저에서 연결해요. 이전 중계와 시리얼 모니터는 먼저 닫아 주세요.</p>
-    </section>
+    <PageHeading title="실시간 측정값" aside={<Pill>{fresh ? "측정값 수신 중" : "현재 확인 불가"}</Pill>}/>
+    <div className="live-measurements">
+      <section className="panel measurement-panel"><h2>가스 원시 출력</h2><p className="measurement-number">{fresh && s.sensor.gasSensor === "MQ-135" && s.sensor.gasAdc != null ? s.sensor.gasAdc : "—"}<span>ADC</span></p><p className="field-help">근사 전압 {fresh && s.sensor.gasVoltageV != null ? `${s.sensor.gasVoltageV.toFixed(2)} V` : "확인 불가"} · 농도 환산 없음</p><Link className="text-link" to="/gas-status">가스 센서 상태 보기</Link></section>
+      <section className="panel measurement-panel"><h2>초음파 거리</h2><p className="measurement-number">{fresh && s.sensor.distance !== null ? s.sensor.distance.toFixed(1) : "—"}<span>cm</span></p><p className="field-help">{!fresh ? "새 측정을 기다려요." : s.sensor.distance === null ? "초음파 응답 없음 · 문 열림이 아니에요." : "실제 사람의 출입을 확정하지 않아요."}</p><Link className="text-link" to="/door-status">문 작동 확인 보기</Link></section>
+    </div>
+    <p className="live-measurement-time">마지막 수신 {s.sensor.lastSeen ? `${kstClock(s.sensor.lastSeen, true)}${fresh ? "" : " · 지난 보고"}` : "아직 없어요"} · 3초마다 화면 조회</p>
+    <section className="panel measurement-panel"><h2>USB 직접 연결·그래프</h2><p className="panel-description">기존 연결 방식과 별도로, UNO가 꽂힌 컴퓨터에서 USB 직접 연결과 최근 그래프를 사용할 수 있어요. 두 연결 방식의 코드를 섞지 마세요.</p><a href="/streamlit/?page=monitor" className="secondary-button"><ExternalLink size={16}/>USB 직접 연결 화면 열기</a><p className="field-help">V4 · 9600 baud · Trig D9 · Echo D8 · LED D7. 이전 중계와 시리얼 모니터는 먼저 닫아 주세요.</p></section>
     <SafetyNote/>
   </>;
 }

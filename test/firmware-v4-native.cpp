@@ -5,6 +5,9 @@
 #include <iomanip>
 #include <iostream>
 
+static_assert(TRIG_PIN == 9 && ECHO_PIN == 8 && LED_PIN == 7 && BUZZER_PIN == 6, "Delivered V4 pins must match the user's confirmed wiring.");
+static_assert(ECHO_PORT_BIT == PB0 && ECHO_INTERRUPT_BIT == PCINT0, "UNO D8 echo must use PB0 / PCINT0.");
+
 const std::string SID(16,'a');
 unsigned checks=0;
 void checked(const char *label) { ++checks; std::cout << "통과 · " << label << '\n'; }
@@ -25,12 +28,45 @@ void reset() {
   ledOn=buzzerOn=false; ledSource=buzzerSource=gasState=0; seq=0; gasRaw=100;
   gasSum=gasCount=lastGas=lastAverage=lastReport=lastTrigger=distanceAt=0;
   distanceMm=-1; distanceCount=distanceSlot=0; echoPhase=0; echoReady=false;
-  fakeNow=100; fakeAdc=100; memset(pins,0,sizeof(pins)); Serial.input.clear(); Serial.clear(); hello(); Serial.clear();
+  fakeNow=100; fakeAdc=100; PINB=PCICR=PCMSK0=0; memset(pins,0,sizeof(pins)); Serial.input.clear(); Serial.clear(); hello(); Serial.clear();
 }
-int main() {
-  reset(); setup(); tx.pump(); assert(!gasEnabled && !pins[8] && !pins[6]);
+int main(int argc, char **argv) {
+  // Emit only isolated test frames for the actual browser parser; never USB/live data.
+  if (argc==2 && std::string(argv[1])=="--usb-contract") {
+    reset(); setup(); tx.pump(); hello();
+    for (int adc : {0,1023,-1,100}) {
+      gasRaw=adc; distanceMm=adc==0?-1:adc==1023?4000:adc==-1?80:1438;
+      report(fakeNow); tx.pump();
+    }
+    gasRaw=1023; config();
+    manualCommand("led",true,2); report(fakeNow); tx.pump();
+    manualCommand("buzzer",true,2,2); report(fakeNow); tx.pump();
+    fakeNow=3100; outputs(fakeNow); report(fakeNow); tx.pump();
+    std::cout << Serial.output.str(); return 0;
+  }
+  reset(); setup(); tx.pump(); assert(!gasEnabled && !pins[LED_PIN] && !pins[BUZZER_PIN]);
+  assert(PCICR==_BV(PCIE0) && PCMSK0==_BV(PCINT0));
   assert(Serial.output.str().find("ZIPON_USB_V4")!=std::string::npos);
   evaluateGas(1023,100); evaluateGas(1023,60000); assert(!gasAlarm); checked("V4 부팅·감시 꺼짐·명시 시작");
+
+  reset(); setup(); Serial.clear();
+  fakeNow=1000; loop(); assert(echoPhase==1 && !pins[TRIG_PIN]);
+  PINB=_BV(PB3); PCINT0_vect(); assert(echoPhase==1);
+  PINB=_BV(PB0); PCINT0_vect(); assert(echoPhase==2);
+  fakeNow=1001; PINB=0; PCINT0_vect(); assert(echoReady && echoWidth==1000 && echoPhase==0);
+  loop(); assert(distanceMm==171 && !echoReady);
+  checked("Echo D8의 상승·하강으로 거리 측정·이전 D11 신호는 무시");
+
+  reset(); setup(); fakeNow=200; loop(); assert(echoPhase==1);
+  fakeNow=231; loop(); assert(distanceMm==-1 && echoPhase==0);
+  checked("D8 무응답은 거리 미확인·0cm나 출입으로 판정하지 않음");
+
+  for (int adc : {-1,0,1023}) {
+    reset(); gasRaw=adc; config(); assert(!gasEnabled && !gasAlarm && !configRevision);
+    assert(Serial.output.str().find("gas_not_ready")!=std::string::npos);
+    config(false,2); assert(lastCommandId==2 && !gasEnabled);
+  }
+  checked("미측정·ADC 양 끝에서 새 가스 감시 시작 거절·꺼짐 설정은 허용");
 
   reset(); config(); assert(gasEnabled && configRevision==1);
   evaluateGas(200,1000); evaluateGas(100,5000); evaluateGas(200,6000); evaluateGas(200,10999); assert(!gasAlarm);
@@ -100,7 +136,7 @@ int main() {
   reset(); gasRaw=1023; distanceMm=4000; configRevision=2147483647; seq=4294967294;
   fakeTxCapacity=0; report(4294967295U); assert(tx.freeBytes()>=31);
   assert(Serial.output.str().empty());
-  gasEnabled=true; gasAlarm=true; fakeNow=500; outputs(fakeNow); assert(pins[8] && pins[6]);
+  gasEnabled=true; gasAlarm=true; fakeNow=500; outputs(fakeNow); assert(pins[LED_PIN] && pins[BUZZER_PIN]);
   for (int n=0;n<30;n++) { fakeTxCapacity=32; loop(); }
   const std::string frame=Serial.output.str();
   assert(frame.find("\"type\":\"telemetry\"")==1 && frame.find("\"config\":2147483647}")!=std::string::npos && frame.size()<480);

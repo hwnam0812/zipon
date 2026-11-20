@@ -70,6 +70,14 @@ export const emptySensor: SensorState = {
   board: null,
 };
 
+/** Display-only comparison. It never changes board alarms, settings or saved events. */
+export function compareDoorDistance(distance: number | null, baseline: number | null, fresh: boolean): { state: "unavailable" | "within" | "outside"; delta: number | null } {
+  if (!fresh || distance === null || baseline === null || !Number.isFinite(distance) || !Number.isFinite(baseline) || distance < 2 || distance > 400 || baseline < 2 || baseline > 390) return { state: "unavailable", delta: null };
+  const delta = distance - baseline;
+  const boundarySlack = Number.EPSILON * Math.max(distance, baseline) * 4;
+  return { state: Math.abs(delta) <= 10 + boundarySlack ? "within" : "outside", delta };
+}
+
 export function kstDay(when: string | number | Date = Date.now()): string {
   return new Date(new Date(when).getTime() + 9 * 3600_000).toISOString().slice(0, 10);
 }

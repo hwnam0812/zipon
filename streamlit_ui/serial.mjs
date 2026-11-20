@@ -1,5 +1,12 @@
 import { USB_PROTOCOL, FRESH_MS, parseFrame } from "./model.mjs";
 
+function connectionErrorMessage(error, stage) {
+  if (stage === "choosing" && error?.name === "NotFoundError") return "USB 포트 선택을 취소했어요.";
+  if (["SecurityError", "NotAllowedError"].includes(error?.name)) return "USB 연결 권한을 확인하지 못했어요. 데스크톱 Chrome·Edge에서 앱을 별도 탭으로 열고 USB 권한을 허용해 주세요.";
+  if (stage === "opening") return "USB 포트를 열지 못했어요. Arduino IDE의 시리얼 모니터·플로터, 중계 프로그램과 다른 USB 연결 탭을 닫아 주세요. 계속되면 USB를 뺐다가 다시 꽂고 UNO 포트를 선택해 주세요.";
+  return "USB 연결을 시작하지 못했어요. 케이블 연결을 확인하고 앱을 새로고침한 뒤 다시 연결해 주세요.";
+}
+
 export class UsbConnection {
   constructor({ onSample, onStatus, onEvent, serial = globalThis.navigator?.serial, now = () => performance.now() }) {
     this.serial = serial; this.onSample = onSample; this.onStatus = onStatus; this.onEvent = onEvent; this.now = now;
@@ -17,14 +24,16 @@ export class UsbConnection {
     if (globalThis.document?.permissionsPolicy && !document.permissionsPolicy.allowsFeature("serial")) throw new Error("이 화면의 USB 권한이 막혀 있어요. 앱을 별도 탭에서 열어 주세요.");
     this.opening = true; const gen = ++this.generation;
     this.status("choosing", "UNO의 USB 포트를 선택해 주세요.");
-    let port;
+    let port, stage = "choosing", opened = false;
     try {
       // The first requestPort runs directly inside the click's user activation.
       port = reconnect && this.savedPort ? this.savedPort : await this.serial.requestPort();
       if (gen !== this.generation) return;
       this.status("opening", "포트를 열고 새 스케치를 확인하고 있어요.");
+      stage = "opening";
       this.port = port; this.savedPort = port;
       await port.open({ baudRate: 9600, dataBits: 8, stopBits: 1, parity: "none", flowControl: "none", bufferSize: 2048 });
+      opened = true; stage = "streams";
       if (gen !== this.generation) { await port.close().catch(() => {}); return; }
       if (!port.readable || !port.writable) throw new Error("USB 읽기·쓰기를 시작하지 못했어요.");
       this.writer = port.writable.getWriter(); this.reader = port.readable.getReader();
@@ -35,8 +44,12 @@ export class UsbConnection {
       this.timer = setInterval(() => this.tick(), 250);
       this.tick();
     } catch (error) {
-      if (gen === this.generation) await this.close(error?.name === "NotFoundError" ? "USB 포트 선택을 취소했어요." : "USB를 열지 못했어요. 시리얼 모니터·중계 프로그램을 닫고 케이블과 브라우저 권한을 확인해 주세요.");
-      throw new Error(error?.name === "NotFoundError" ? "USB 포트 선택을 취소했어요." : error.message || "USB 연결을 시작하지 못했어요.");
+      const message = connectionErrorMessage(error, stage);
+      // A failed open grants no ownership: never close a port held elsewhere.
+      if (!opened && this.port === port) this.port = null;
+      if (gen === this.generation) await this.close(message);
+      // Keep the actionable message; raw browser English used to overwrite it.
+      throw new Error(message);
     } finally { this.opening = false; }
   }
   tick() {
